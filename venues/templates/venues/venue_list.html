@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Venue{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Manajemen Venue</h1>
+        <p class="text-sm text-gray-500">Daftar venue yang tersedia</p>
+    </div>
+
+    {% if request.session.user.role == 'administrator' or request.session.user.role == 'organizer' %}
+    <button hx-get="{% url 'venues:venue_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+        class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+        + Tambah Venue
+    </button>
+    {% endif %}
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white rounded-2xl p-6 shadow-sm border">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Total Venue</h3>
+        <p class="text-3xl font-bold text-gray-900">{{ total_venue }}</p>
+    </div>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Reserved Seating</h3>
+        <p class="text-3xl font-bold text-gray-900">{{ reserved_seating }}</p>
+    </div>
+    <div class="bg-white rounded-2xl p-6 shadow-sm border">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Total Kapasitas</h3>
+        <p class="text-3xl font-bold text-gray-900">{{ total_capacity }}</p>
+    </div>
+</div>
+
+<form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6 bg-white p-4 rounded-xl shadow-sm border">
+    <input type="text" name="q" value="{{ q }}" placeholder="Cari nama atau alamat"
+        class="border rounded-lg px-3 py-2 w-full">
+
+    <select name="city" class="border rounded-lg px-3 py-2 w-full">
+        <option value="">Semua Kota</option>
+        {% for item in cities %}
+        <option value="{{ item }}" {% if selected_city == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="seating" class="border rounded-lg px-3 py-2 w-full">
+        <option value="">Semua Seating</option>
+        <option value="reserved" {% if selected_seating == "reserved" %}selected{% endif %}>Reserved Seating</option>
+        <option value="free" {% if selected_seating == "free" %}selected{% endif %}>Free Seating</option>
+    </select>
+
+    <div class="flex gap-2">
+        <button type="submit" class="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800">Filter</button>
+        <a href="{% url 'venues:venue_list' %}" class="border px-4 py-2 rounded-lg hover:bg-gray-50">Reset</a>
+    </div>
+</form>
+
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% for venue in venues %}
+    <div class="bg-white rounded-2xl border shadow-sm p-5">
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">{{ venue.venue_name }}</h3>
+                <p class="text-sm text-gray-500">{{ venue.address }}</p>
+            </div>
+            <span
+                class="text-xs px-3 py-1 rounded-full {% if venue.seating_type == 'reserved' %}bg-indigo-100 text-indigo-700{% else %}bg-green-100 text-green-700{% endif %}">
+                {% if venue.seating_type == 'reserved' %}Reserved{% else %}Free{% endif %}
+            </span>
+        </div>
+
+        <div class="mt-4 space-y-2 text-sm text-gray-700">
+            <p><span class="font-medium">Kota:</span> {{ venue.city }}</p>
+            <p><span class="font-medium">Kapasitas:</span> {{ venue.capacity }}</p>
+            <p><span class="font-medium">Venue ID:</span> {{ venue.venue_id }}</p>
+        </div>
+
+        {% if request.session.user.role == 'administrator' or request.session.user.role == 'organizer' %}
+        <div class="mt-5 flex gap-2">
+            <button hx-get="{% url 'venues:venue_edit' venue.venue_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+                class="px-4 py-2 rounded-lg border border-indigo-600 text-indigo-600 hover:bg-indigo-50">
+                Edit
+            </button>
+            <button hx-get="{% url 'venues:venue_delete' venue.venue_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+                class="px-4 py-2 rounded-lg border border-red-500 text-red-500 hover:bg-red-50">
+                Hapus
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="col-span-full bg-white rounded-xl border p-6 text-center text-gray-500">
+        Tidak ada venue yang cocok dengan filter.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

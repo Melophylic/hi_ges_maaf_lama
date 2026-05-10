@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Profil Saya | TikTakTuk{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">Profil Saya</h1>
+    <p class="text-sm text-gray-500">Kelola informasi pribadi dan preferensi akun Anda</p>
+  </div>
+
+  <!-- CARD PROFIL -->
+  <div class="bg-white rounded-2xl shadow-sm border p-6">
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h2 class="font-semibold text-gray-900">Informasi Profil</h2>
+        <p class="text-sm text-gray-500">Kelola data pribadi Anda di platform TikTakTuk</p>
+      </div>
+
+      <button
+        type="button"
+        onclick="openModal('editProfileModal')"
+        class="text-sm border px-3 py-1.5 rounded-lg hover:bg-gray-50"
+      >
+        ✎ Edit
+      </button>
+    </div>
+
+    <div class="border-t pt-5">
+      <div class="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center text-2xl font-bold mb-6">
+        {{ user.name|first }}
+      </div>
+
+      <div class="mb-5">
+        <p class="text-xs text-gray-500 mb-1">Role / Peran</p>
+
+        {% if user.role == "administrator" %}
+          <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">Administrator</span>
+        {% elif user.role == "organizer" %}
+          <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium">Penyelenggara</span>
+        {% else %}
+          <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">Pelanggan</span>
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-sm">
+        <div>
+          <p class="text-gray-500">
+            {% if user.role == "organizer" %}
+              Nama Organizer
+            {% else %}
+              Nama Lengkap
+            {% endif %}
+          </p>
+          <p class="font-medium text-gray-900">{{ user.name }}</p>
+        </div>
+
+        <div>
+          <p class="text-gray-500">
+            {% if user.role == "organizer" %}
+              Contact Email
+            {% else %}
+              Email
+            {% endif %}
+          </p>
+          <p class="font-medium text-gray-900">{{ user.email }}</p>
+        </div>
+
+        <div>
+          <p class="text-gray-500">Username</p>
+          <p class="font-medium text-gray-900">{{ user.username }}</p>
+        </div>
+
+        <div>
+          <p class="text-gray-500">Nomor Telepon</p>
+          <p class="font-medium text-gray-900">
+            {% if user.phone %}
+              {{ user.phone }}
+            {% else %}
+              +62812345678
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPDATE PASSWORD -->
+  <div class="bg-white rounded-2xl shadow-sm border p-6">
+    <div class="mb-5">
+      <h2 class="font-semibold text-gray-900">🔒 Update Password</h2>
+      <p class="text-sm text-gray-500">Perbarui password Anda untuk menjaga keamanan akun</p>
+    </div>
+
+    <form onsubmit="event.preventDefault(); alert('Simulasi frontend: password berhasil diupdate.');" class="space-y-4">
+      <div>
+        <label class="text-sm font-medium">Password Lama</label>
+        <input
+          type="password"
+          placeholder="Password Lama"
+          class="w-full border rounded-lg px-3 py-2 mt-1"
+        >
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Password Baru</label>
+        <input
+          type="password"
+          placeholder="Password Baru"
+          class="w-full border rounded-lg px-3 py-2 mt-1"
+        >
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Konfirmasi Password Baru</label>
+        <input
+          type="password"
+          placeholder="Konfirmasi Password Baru"
+          class="w-full border rounded-lg px-3 py-2 mt-1"
+        >
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3">
+        <button type="reset" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+          Cancel
+        </button>
+
+        <button type="submit" class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800">
+          Update Password
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<!-- MODAL EDIT PROFIL -->
+<div id="editProfileModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+  <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-lg">
+    <div class="flex justify-between items-center mb-5">
+      <div>
+        <h2 class="text-xl font-bold">Edit Profil</h2>
+        <p class="text-sm text-gray-500">Simulasi frontend, data tidak tersimpan permanen</p>
+      </div>
+
+      <button onclick="closeModal('editProfileModal')" class="text-gray-400 hover:text-gray-700 text-xl">
+        ×
+      </button>
+    </div>
+
+    <form onsubmit="event.preventDefault(); closeModal('editProfileModal'); alert('Simulasi frontend: profil berhasil diupdate.');" class="space-y-4">
+
+      {% if user.role == "organizer" %}
+        <div>
+          <label class="text-sm font-medium">Nama Organizer</label>
+          <input
+            value="{{ user.name }}"
+            class="w-full border rounded-lg px-3 py-2 mt-1"
+          >
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Contact Email</label>
+          <input
+            value="{{ user.email }}"
+            class="w-full border rounded-lg px-3 py-2 mt-1"
+          >
+        </div>
+      {% elif user.role == "administrator" %}
+        <div>
+          <label class="text-sm font-medium">Nama Admin</label>
+          <input
+            value="{{ user.name }}"
+            class="w-full border rounded-lg px-3 py-2 mt-1"
+          >
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Email</label>
+          <input
+            value="{{ user.email }}"
+            class="w-full border rounded-lg px-3 py-2 mt-1"
+          >
+        </div>
+      {% else %}
+        <div>
+          <label class="text-sm font-medium">Nama Lengkap</label>
+          <input
+            value="{{ user.name }}"
+            class="w-full border rounded-lg px-3 py-2 mt-1"
+          >
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Nomor Telepon</label>
+          <input
+            value="{% if user.phone %}{{ user.phone }}{% else %}+62812345678{% endif %}"
+            class="w-full border rounded-lg px-3 py-2 mt-1"
+          >
+        </div>
+      {% endif %}
+
+      <div>
+        <label class="text-sm font-medium">Username</label>
+        <input
+          value="{{ user.username }}"
+          disabled
+          class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100 text-gray-500"
+        >
+        <p class="text-xs text-gray-400 mt-1">Username tidak dapat diubah.</p>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" onclick="closeModal('editProfileModal')" class="px-4 py-2 border rounded-lg">
+          Batal
+        </button>
+
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+          Simpan
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="w-full max-w-lg bg-white rounded-2xl shadow p-8">
+    <div class="text-center mb-6">
+      <div class="mx-auto bg-blue-600 text-white rounded-lg w-12 h-12 flex items-center justify-center font-bold">
+        TT
+      </div>
+      <h1 class="text-2xl font-bold mt-3">TikTakTuk</h1>
+      <p class="text-sm text-slate-500">Daftar untuk Memulai</p>
+    </div>
+
+    <h2 class="font-semibold mb-3">Jenis Pengguna</h2>
+
+    <div class="space-y-3">
+      <a href="{% url 'accounts:register_customer' %}" class="block border rounded-xl p-4 hover:bg-blue-50">
+        <b>👤 Pelanggan</b>
+        <p class="text-sm text-slate-500">Beli dan kelola tiket untuk acara favorit Anda</p>
+      </a>
+
+      <a href="{% url 'accounts:register_organizer' %}" class="block border rounded-xl p-4 hover:bg-blue-50">
+        <b>🎪 Penyelenggara</b>
+        <p class="text-sm text-slate-500">Buat dan kelola acara serta venue Anda</p>
+      </a>
+
+      <a href="{% url 'accounts:register_admin' %}" class="block border rounded-xl p-4 hover:bg-blue-50">
+        <b>🛡️ Administrator</b>
+        <p class="text-sm text-slate-500">Kelola sistem dan pantau aktivitas platform</p>
+      </a>
+    </div>
+
+    <p class="text-center text-sm mt-5">
+      Sudah punya akun?
+      <a href="{% url 'accounts:login' %}" class="text-blue-600">Login di sini</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

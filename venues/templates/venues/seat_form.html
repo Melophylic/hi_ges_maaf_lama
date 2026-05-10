@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="relative min-h-screen bg-slate-50">
+  <div class="mx-auto max-w-5xl px-6 py-8">
+    <div class="mb-6 flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-950">
+          {{ page_title }}
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+          {{ page_subtitle }}
+        </p>
+      </div>
+
+      {% if can_create_seat %}
+        <a
+          href="{% url 'venues:seat_create' %}?role={{ page_role }}"
+          class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm"
+        >
+          <span class="text-base leading-none">+</span>
+          Tambah Kursi
+        </a>
+      {% endif %}
+    </div>
+
+    <div class="mb-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div class="rounded-2xl border border-slate-100 bg-white px-6 py-7 shadow-sm">
+        <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Total Kursi</p>
+        <h2 class="mt-4 text-2xl font-extrabold text-slate-950">{{ stats.total }}</h2>
+      </div>
+
+      <div class="rounded-2xl border border-slate-100 bg-white px-6 py-7 shadow-sm">
+        <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Tersedia</p>
+        <h2 class="mt-4 text-2xl font-extrabold text-slate-950">{{ stats.available }}</h2>
+      </div>
+
+      <div class="rounded-2xl border border-slate-100 bg-white px-6 py-7 shadow-sm">
+        <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">Terisi</p>
+        <h2 class="mt-4 text-2xl font-extrabold text-slate-950">{{ stats.filled }}</h2>
+      </div>
+    </div>
+
+    <form method="get" action="{% url 'venues:seat_list' %}" class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-5">
+      <input type="hidden" name="role" value="{{ page_role }}">
+
+      <div class="relative md:col-span-2">
+        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+          </svg>
+        </span>
+
+        <input
+          type="text"
+          name="q"
+          value="{{ request.GET.q }}"
+          placeholder="Cari section, baris, atau nomor..."
+          class="h-9 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-700 shadow-sm outline-none placeholder:text-slate-400"
+        />
+      </div>
+
+      <div class="md:col-span-1">
+        <select
+          name="venue"
+          onchange="this.form.submit()"
+          class="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm outline-none"
+        >
+          <option value="">Semua Venue</option>
+          {% for venue in venues %}
+            <option
+              value="{{ venue.venue_id }}"
+              {% if request.GET.venue == venue.venue_id|stringformat:"s" %}selected{% endif %}
+            >
+              {{ venue.venue_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+
+    <div class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+      {% include "venues/partials/seat_table.html" %}
+    </div>
+  </div>
+
+  <div class="fixed inset-0 z-40 bg-slate-950/45"></div>
+
+  <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <div class="mb-5 flex items-center justify-between">
+        <h1 class="text-lg font-extrabold tracking-tight text-slate-950">
+          {% if form_mode == "edit" %}Edit Kursi{% else %}Tambah Kursi Baru{% endif %}
+        </h1>
+
+        <a
+          href="{% url 'venues:seat_list' %}?role={{ page_role }}"
+          class="inline-flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Tutup"
+        >
+          &times;
+        </a>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="space-y-4">
+          <div>
+            <label class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+              Venue
+            </label>
+            <select
+              name="venue_id"
+              required
+              class="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            >
+              {% for venue in venues %}
+                <option
+                  value="{{ venue.venue_id }}"
+                  {% if selected_seat.venue_id == venue.venue_id %}selected{% endif %}
+                >
+                  {{ venue.venue_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+              Section
+            </label>
+            <input
+              type="text"
+              name="section"
+              required
+              placeholder="cth. WVIP"
+              value="{% if form_mode == 'edit' %}{{ selected_seat.section }}{% endif %}"
+              class="h-10 w-full rounded-xl border border-slate-200 px-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                Baris
+              </label>
+              <input
+                type="text"
+                name="row_number"
+                required
+                placeholder="cth. A"
+                value="{% if form_mode == 'edit' %}{{ selected_seat.row_number }}{% endif %}"
+                class="h-10 w-full rounded-xl border border-slate-200 px-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+
+            <div>
+              <label class="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
+                No. Kursi
+              </label>
+              <input
+                type="text"
+                name="seat_number"
+                required
+                placeholder="cth. 1"
+                value="{% if form_mode == 'edit' %}{{ selected_seat.seat_number }}{% endif %}"
+                class="h-10 w-full rounded-xl border border-slate-200 px-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-3">
+          <a
+            href="{% url 'venues:seat_list' %}?role={{ page_role }}"
+            class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+          >
+            Batal
+          </a>
+
+          <button
+            type="submit"
+            class="inline-flex h-10 items-center justify-center rounded-xl bg-blue-400 text-sm font-bold text-white shadow-sm transition hover:bg-blue-500"
+          >
+            {% if form_mode == "edit" %}Simpan{% else %}Tambah{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

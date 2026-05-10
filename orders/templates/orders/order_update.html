@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Update Order | TikTakTuk{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white rounded-xl shadow-sm border p-6">
+
+  <h1 class="text-xl font-bold mb-1">Update Status Order</h1>
+  <p class="text-sm text-gray-500 mb-6">
+    Admin dapat mengubah status pembayaran order.
+  </p>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label class="text-sm font-medium">Order ID</label>
+      <input
+        value="{{ order.order_id }}"
+        disabled
+        class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100 text-gray-600"
+      >
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Customer</label>
+      <input
+        value="{{ order.customer_name }}"
+        disabled
+        class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100 text-gray-600"
+      >
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Event</label>
+      <input
+        value="{{ order.event_name }}"
+        disabled
+        class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100 text-gray-600"
+      >
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Payment Status</label>
+      <select name="payment_status" class="w-full border rounded-lg px-3 py-2 mt-1">
+        {% for status in payment_statuses %}
+          <option value="{{ status }}" {% if order.payment_status == status %}selected{% endif %}>
+            {{ status }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="flex justify-end gap-3 pt-4">
+      <a href="{% url 'orders:order_list' %}?role={{ role }}" class="px-4 py-2 border rounded-lg">
+        Batal
+      </a>
+      <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+        Update
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

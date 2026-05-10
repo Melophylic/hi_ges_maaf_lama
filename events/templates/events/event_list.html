@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Event{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Jelajahi Acara</h1>
+        <p class="text-sm text-gray-500">Daftar event yang tersedia</p>
+    </div>
+
+    {% if request.session.user.role == 'administrator' or request.session.user.role == 'organizer' %}
+    <button
+        hx-get="{% url 'events:event_create' %}"
+        hx-target="#modal-root"
+        hx-swap="innerHTML"
+        class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+        + Buat Acara
+    </button>
+    {% endif %}
+</div>
+
+<form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 bg-white p-4 rounded-xl shadow-sm border">
+    <input type="text" name="q" value="{{ q }}" placeholder="Cari judul atau performer"
+        class="border rounded-lg px-3 py-2 w-full">
+
+    <select name="venue" class="border rounded-lg px-3 py-2 w-full">
+        <option value="">Semua Venue</option>
+        {% for item in venues %}
+        <option value="{{ item }}" {% if selected_venue == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+    </select>
+
+    <div class="flex gap-2">
+        <button type="submit" class="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800">Filter</button>
+        <a href="{% url 'events:event_list' %}" class="border px-4 py-2 rounded-lg hover:bg-gray-50">Reset</a>
+    </div>
+</form>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    {% for event in events %}
+    <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+        <img src="{{ event.image }}" alt="{{ event.event_title }}" class="h-56 w-full object-cover">
+
+        <div class="p-5">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-900">{{ event.event_title }}</h3>
+                    <p class="text-sm text-gray-500 mt-1">{{ event.event_datetime|date:"d M Y, H:i" }}</p>
+                </div>
+                <span class="text-xs px-3 py-1 rounded-full bg-indigo-100 text-indigo-700">
+                    {{ event.venue_name }}
+                </span>
+            </div>
+
+            <div class="mt-4 text-sm text-gray-700 space-y-2">
+                <p><span class="font-medium">Organizer:</span> {{ event.organizer_name }}</p>
+                <p><span class="font-medium">Performer:</span>
+                    {% for p in event.performers %}
+                    <span class="inline-block bg-gray-100 px-2 py-1 rounded-md mr-1 mb-1">{{ p }}</span>
+                    {% endfor %}
+                </p>
+                <p><span class="font-medium">Kategori Tiket:</span>
+                    {% for cat in event.ticket_categories %}
+                    <span class="inline-block bg-green-100 text-green-700 px-2 py-1 rounded-md mr-1 mb-1">
+                        {{ cat.name }}
+                    </span>
+                    {% endfor %}
+                </p>
+                <p><span class="font-medium">Harga mulai:</span> Rp{{ event.ticket_categories.0.price }}</p>
+                <p class="text-gray-600">{{ event.description }}</p>
+            </div>
+
+            <div class="mt-5 flex gap-2">
+                <a href="{% url 'events:event_detail' event.event_id %}"
+                   class="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">
+                    Detail
+                </a>
+
+                <a href="{% url 'orders:checkout' %}"
+                   class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                    Buy
+                </a>
+
+                {% if request.session.user.role == 'administrator' or request.session.user.role == 'organizer' %}
+                <button
+                    hx-get="{% url 'events:event_edit' event.event_id %}"
+                    hx-target="#modal-root"
+                    hx-swap="innerHTML"
+                    class="px-4 py-2 rounded-lg border border-indigo-600 text-indigo-600 hover:bg-indigo-50">
+                    Edit
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-span-full bg-white rounded-xl border p-6 text-center text-gray-500">
+        Tidak ada event yang cocok dengan filter.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

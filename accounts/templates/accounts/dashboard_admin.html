@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="bg-slate-900 text-white rounded-2xl p-6 mb-6 flex justify-between items-start">
+  <div>
+    <p class="text-sm text-slate-300">Administrator</p>
+    <h1 class="text-2xl font-bold">System Console</h1>
+    <p class="text-sm text-slate-300">Pantau dan kelola platform TikTakTuk</p>
+  </div>
+  <a href="{% url 'promotions:promotion_list' %}" class="bg-white text-slate-900 px-4 py-2 rounded-full text-sm">
+    Promosi
+  </a>
+</section>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Total Pengguna</p>
+    <h2 class="text-2xl font-bold">12</h2>
+    <p class="text-xs text-gray-400">Pengguna aktif</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Total Acara</p>
+    <h2 class="text-2xl font-bold">6</h2>
+    <p class="text-xs text-gray-400">Bulan ini</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Omzet Platform</p>
+    <h2 class="text-2xl font-bold">Rp 52.4M</h2>
+    <p class="text-xs text-gray-400">Gross volume</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Promosi Aktif</p>
+    <h2 class="text-2xl font-bold">6</h2>
+    <p class="text-xs text-gray-400">Running campaign</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div class="bg-white rounded-xl shadow-sm border p-5">
+    <h3 class="font-bold mb-4">Infrastruktur Venue</h3>
+    <div class="space-y-3 text-sm">
+      <div class="flex justify-between"><span class="text-gray-500">Total Venue Terdaftar</span><b>5 Lokasi</b></div>
+      <div class="flex justify-between"><span class="text-gray-500">Reserved Seating</span><b>2 Venue</b></div>
+      <div class="flex justify-between"><span class="text-gray-500">Kapasitas Terbesar</span><b>15.000 Kursi</b></div>
+    </div>
+    <button class="mt-5 w-full border rounded-lg py-2 text-sm">Kelola Venue</button>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm border p-5">
+    <h3 class="font-bold mb-4">Marketing & Promosi</h3>
+    <div class="space-y-3 text-sm">
+      <div class="flex justify-between"><span class="text-gray-500">Promo Persentase</span><b>3 Aktif</b></div>
+      <div class="flex justify-between"><span class="text-gray-500">Promo Potongan Nominal</span><b>3 Aktif</b></div>
+      <div class="flex justify-between"><span class="text-gray-500">Total Penggunaan</span><b>549 Kali</b></div>
+    </div>
+    <a href="{% url 'promotions:promotion_list' %}" class="block mt-5 w-full border rounded-lg py-2 text-sm text-center">
+      Kelola Promosi
+    </a>
+  </div>
+</div>
+{% endblock %}

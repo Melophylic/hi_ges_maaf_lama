@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="bg-blue-600 text-white rounded-2xl p-6 mb-6 flex justify-between items-start">
+  <div>
+    <p class="text-sm text-blue-100">Selamat datang kembali</p>
+    <h1 class="text-2xl font-bold">{{ user.name }}</h1>
+    <p class="text-sm text-blue-100">3 acara menarik menunggu Anda</p>
+  </div>
+  <a href="#" class="bg-white text-blue-600 px-4 py-2 rounded-full text-sm">
+    Cari Tiket
+  </a>
+</section>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Tiket Aktif</p>
+    <h2 class="text-2xl font-bold">2</h2>
+    <p class="text-xs text-gray-400">Siap digunakan</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Acara Diikuti</p>
+    <h2 class="text-2xl font-bold">12</h2>
+    <p class="text-xs text-gray-400">Total pengalaman</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Kode Promo</p>
+    <h2 class="text-2xl font-bold">6</h2>
+    <p class="text-xs text-gray-400">Tersedia untuk Anda</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Total Belanja</p>
+    <h2 class="text-2xl font-bold">Rp 1.6M</h2>
+    <p class="text-xs text-gray-400">Bulan ini</p>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border p-5">
+  <div class="flex justify-between mb-4">
+    <div>
+      <h3 class="font-bold">Tiket Mendatang</h3>
+      <p class="text-sm text-gray-500">Tiket pertunjukan yang akan datang</p>
+    </div>
+    <a href="#" class="text-sm text-blue-600">Lihat Semua</a>
+  </div>
+
+  <div class="space-y-4 text-sm">
+    <div class="flex justify-between border-b pb-3">
+      <div>
+        <b>Jakarta Music Fest 2026</b>
+        <p class="text-gray-500">10 Mei 2026 • Istora Senayan</p>
+      </div>
+      <span>›</span>
+    </div>
+
+    <div class="flex justify-between">
+      <div>
+        <b>Campus Festival Purwokerto</b>
+        <p class="text-gray-500">20 Juli 2026 • Jakarta Convention Center</p>
+      </div>
+      <span>›</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

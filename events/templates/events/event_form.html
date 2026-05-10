@@ -1,0 +1,98 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl p-6">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <h2 class="text-xl font-bold">
+                    {% if mode == 'create' %}Buat Event{% else %}Edit Event{% endif %}
+                </h2>
+                <p class="text-sm text-gray-500">Modal frontend dummy</p>
+            </div>
+            <button data-close-modal class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Judul Acara</label>
+                    <input type="text" name="event_title" value="{{ event.event_title|default:'' }}"
+                        class="border rounded-lg px-3 py-2 w-full" required>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tanggal</label>
+                        <input type="date" name="event_date"
+                            value="{% if event %}{{ event.event_datetime|date:'Y-m-d' }}{% endif %}"
+                            class="border rounded-lg px-3 py-2 w-full" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Waktu</label>
+                        <input type="time" name="event_time"
+                            value="{% if event %}{{ event.event_datetime|date:'H:i' }}{% endif %}"
+                            class="border rounded-lg px-3 py-2 w-full" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Venue</label>
+                        <select name="venue_id" class="border rounded-lg px-3 py-2 w-full" required>
+                            <option value="">Pilih venue</option>
+                            {% for v in venues %}
+                            <option value="{{ v.venue_id }}" {% if event.venue_id == v.venue_id %}selected{% endif %}>
+                                {{ v.venue_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Organizer</label>
+                        <select name="organizer_id" class="border rounded-lg px-3 py-2 w-full" required>
+                            <option value="">Pilih organizer</option>
+                            {% for o in organizers %}
+                            <option value="{{ o.organizer_id }}" {% if event.organizer_id == o.organizer_id %}selected{% endif %}>
+                                {{ o.organizer_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Performer</label>
+                    <textarea name="performers_text" rows="3" class="border rounded-lg px-3 py-2 w-full"
+                        placeholder="Pisahkan dengan koma">{{ performers_text }}</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Kategori Tiket</label>
+                    <textarea name="ticket_categories_text" rows="3" class="border rounded-lg px-3 py-2 w-full"
+                        placeholder="Pisahkan dengan koma">{{ ticket_categories_text }}</textarea>
+                    <p class="text-xs text-gray-400 mt-1">Ini hanya dummy frontend, isi bebas saja.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Gambar Acara</label>
+                    <input type="url" name="image" value="{{ event.image|default:'' }}"
+                        placeholder="https://..."
+                        class="border rounded-lg px-3 py-2 w-full">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Deskripsi</label>
+                    <textarea name="description" rows="4" class="border rounded-lg px-3 py-2 w-full">{{ event.description|default:'' }}</textarea>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-6">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                    {% if mode == 'create' %}Buat Acara{% else %}Simpan{% endif %}
+                </button>
+                <button type="button" data-close-modal class="border px-4 py-2 rounded-lg hover:bg-gray-50">
+                    Batal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

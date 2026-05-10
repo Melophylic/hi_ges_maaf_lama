@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block title %}Promosi | TikTakTuk{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Manajemen Promosi</h1>
+      <p class="text-sm text-gray-500">List promo aktif yang dapat digunakan untuk pembelian tiket</p>
+    </div>
+
+    {% if role == 'admin' %}
+      <button
+        type="button"
+        onclick="openModal('createPromotionModal')"
+        class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+      >
+        + Buat Promo
+      </button>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl shadow-sm border p-5">
+      <p class="text-sm text-gray-500">Total Promo</p>
+      <p class="text-2xl font-bold">{{ total_promos }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border p-5">
+      <p class="text-sm text-gray-500">Total Penggunaan</p>
+      <p class="text-2xl font-bold">{{ total_usage }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border p-5">
+      <p class="text-sm text-gray-500">Promo Persentase</p>
+      <p class="text-2xl font-bold">{{ total_percentage }}</p>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white rounded-xl shadow-sm border p-4 flex gap-3">
+
+    <input
+      type="text"
+      name="q"
+      value="{{ search }}"
+      placeholder="Cari kode promo..."
+      class="flex-1 border rounded-lg px-3 py-2 text-sm"
+    >
+
+    <select name="type" class="border rounded-lg px-3 py-2 text-sm">
+      <option value="all">Semua Tipe</option>
+      <option value="PERCENTAGE" {% if filter_type == 'PERCENTAGE' %}selected{% endif %}>Persentase</option>
+      <option value="NOMINAL" {% if filter_type == 'NOMINAL' %}selected{% endif %}>Nominal</option>
+    </select>
+
+    <button class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm">Filter</button>
+  </form>
+
+  <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Kode Promo</th>
+          <th class="text-left px-4 py-3">Tipe</th>
+          <th class="text-left px-4 py-3">Nilai</th>
+          <th class="text-left px-4 py-3">Mulai</th>
+          <th class="text-left px-4 py-3">Berakhir</th>
+          <th class="text-left px-4 py-3">Penggunaan</th>
+
+          {% if role == 'admin' %}
+            <th class="text-right px-4 py-3">Action</th>
+          {% endif %}
+        </tr>
+      </thead>
+
+      <tbody class="divide-y">
+        {% for promo in promotions %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 font-semibold text-indigo-600">{{ promo.promo_code }}</td>
+
+            <td class="px-4 py-3">
+              {% if promo.discount_type == 'PERCENTAGE' %}
+                <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Persentase</span>
+              {% else %}
+                <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">Nominal</span>
+              {% endif %}
+            </td>
+
+            <td class="px-4 py-3">
+              {% if promo.discount_type == 'PERCENTAGE' %}
+                {{ promo.discount_value }}%
+              {% else %}
+                Rp {{ promo.discount_value }}
+              {% endif %}
+            </td>
+
+            <td class="px-4 py-3">{{ promo.start_date }}</td>
+            <td class="px-4 py-3">{{ promo.end_date }}</td>
+            <td class="px-4 py-3">{{ promo.used }} / {{ promo.usage_limit }}</td>
+
+            {% if role == 'admin' %}
+              <td class="px-4 py-3 text-right space-x-2">
+                <button
+                  type="button"
+                  onclick="openModal('updatePromotion{{ forloop.counter }}')"
+                  class="text-indigo-600 hover:underline"
+                >
+                  Update
+                </button>
+
+                <button
+                  type="button"
+                  onclick="openModal('deletePromotion{{ forloop.counter }}')"
+                  class="text-red-600 hover:underline"
+                >
+                  Delete
+                </button>
+              </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-gray-500">Tidak ada promo.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if role == 'admin' %}
+<div id="createPromotionModal" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+  <div class="bg-white rounded-xl p-6 w-full max-w-xl shadow-lg">
+    <h2 class="text-xl font-bold mb-1">Buat Promo Baru</h2>
+    <p class="text-sm text-gray-500 mb-5">Isi data promosi TikTakTuk</p>
+
+    <form
+      class="ajax-form space-y-4"
+      method="post"
+      action="{% url 'promotions:promotion_create' %}?role={{ role }}"
+      data-modal="createPromotionModal"
+    >
+      {% csrf_token %}
+
+      <div>
+        <label class="text-sm font-medium">Kode Promo</label>
+        <input name="promo_code" required class="w-full border rounded-lg px-3 py-2 mt-1">
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Tipe Diskon</label>
+        <select name="discount_type" required class="w-full border rounded-lg px-3 py-2 mt-1">
+          <option value="PERCENTAGE">Persentase</option>
+          <option value="NOMINAL">Nominal</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Nilai Diskon</label>
+        <input type="number" name="discount_value" required min="1" class="w-full border rounded-lg px-3 py-2 mt-1">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm font-medium">Tanggal Mulai</label>
+          <input type="date" name="start_date" required class="w-full border rounded-lg px-3 py-2 mt-1">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Tanggal Berakhir</label>
+          <input type="date" name="end_date" required class="w-full border rounded-lg px-3 py-2 mt-1">
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Batas Penggunaan</label>
+        <input type="number" name="usage_limit" required min="1" class="w-full border rounded-lg px-3 py-2 mt-1">
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" onclick="closeModal('createPromotionModal')" class="px-4 py-2 border rounded-lg">
+          Batal
+        </button>
+
+        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">
+          Buat
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for promo in promotions %}
+<div id="updatePromotion{{ forloop.counter }}" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+  <div class="bg-white rounded-xl p-6 w-full max-w-xl shadow-lg">
+    <h2 class="text-xl font-bold mb-1">Edit Promo</h2>
+    <p class="text-sm text-gray-500 mb-5">{{ promo.promo_code }}</p>
+
+    <form
+      class="ajax-form space-y-4"
+      method="post"
+      action="{% url 'promotions:promotion_update' promo.promotion_id %}?role={{ role }}"
+      data-modal="updatePromotion{{ forloop.counter }}"
+    >
+      {% csrf_token %}
+
+      <div>
+        <label class="text-sm font-medium">Kode Promo</label>
+        <input name="promo_code" required value="{{ promo.promo_code }}" class="w-full border rounded-lg px-3 py-2 mt-1">
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Tipe Diskon</label>
+        <select name="discount_type" required class="w-full border rounded-lg px-3 py-2 mt-1">
+          <option value="PERCENTAGE" {% if promo.discount_type == 'PERCENTAGE' %}selected{% endif %}>Persentase</option>
+          <option value="NOMINAL" {% if promo.discount_type == 'NOMINAL' %}selected{% endif %}>Nominal</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Nilai Diskon</label>
+        <input type="number" name="discount_value" required min="1" value="{{ promo.discount_value }}" class="w-full border rounded-lg px-3 py-2 mt-1">
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm font-medium">Tanggal Mulai</label>
+          <input type="date" name="start_date" required value="{{ promo.start_date }}" class="w-full border rounded-lg px-3 py-2 mt-1">
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Tanggal Berakhir</label>
+          <input type="date" name="end_date" required value="{{ promo.end_date }}" class="w-full border rounded-lg px-3 py-2 mt-1">
+        </div>
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Batas Penggunaan</label>
+        <input type="number" name="usage_limit" required min="1" value="{{ promo.usage_limit }}" class="w-full border rounded-lg px-3 py-2 mt-1">
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" onclick="closeModal('updatePromotion{{ forloop.counter }}')" class="px-4 py-2 border rounded-lg">
+          Batal
+        </button>
+
+        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">
+          Simpan
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="deletePromotion{{ forloop.counter }}" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+  <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-lg">
+    <h2 class="text-xl font-bold text-red-600 mb-2">Hapus Promo</h2>
+
+    <p class="text-gray-600 mb-6">
+      Apakah Anda yakin ingin menghapus kode promo
+      <span class="font-semibold">{{ promo.promo_code }}</span>?
+      Tindakan ini hanya simulasi frontend.
+    </p>
+
+    <form
+      class="ajax-form flex justify-end gap-3"
+      method="post"
+      action="{% url 'promotions:promotion_delete' promo.promotion_id %}?role={{ role }}"
+      data-modal="deletePromotion{{ forloop.counter }}"
+    >
+      {% csrf_token %}
+
+      <button type="button" onclick="closeModal('deletePromotion{{ forloop.counter }}')" class="px-4 py-2 border rounded-lg">
+        Batal
+      </button>
+
+      <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg">
+        Hapus
+      </button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  document.querySelectorAll('.ajax-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const modalId = form.dataset.modal;
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (data) {
+        if (data.success) {
+          closeModal(modalId);
+          alert(data.message);
+          window.location.reload();
+        } else {
+          alert(data.message || 'Gagal memproses request.');
+        }
+      })
+      .catch(function () {
+        alert('Terjadi error saat memproses request.');
+      });
+    });
+  });
+</script>
+{% endblock %}

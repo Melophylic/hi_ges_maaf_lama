@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Daftar Artis{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Daftar Artis</h1>
+        <p class="text-sm text-gray-500">Kelola artis yang ada di platform TikTakTuk</p>
+    </div>
+    {% if 'administrator' in request.session.roles %}
+    <button hx-get="{% url 'events:artist_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        + Tambah Artis
+    </button>
+    {% endif %}
+</div>
+
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-white border rounded-xl p-5">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-1">Total Artis</p>
+        <p class="text-2xl font-bold text-gray-900">{{ total_artists }}</p>
+    </div>
+    <div class="bg-white border rounded-xl p-5">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-1">Genre</p>
+        <p class="text-2xl font-bold text-gray-900">{{ total_genres }}</p>
+    </div>
+    <div class="bg-white border rounded-xl p-5">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-1">Tampil di Event</p>
+        <p class="text-2xl font-bold text-gray-900">{{ total_in_events }}</p>
+    </div>
+</div>
+
+<div class="bg-white border rounded-xl p-6">
+    <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-gray-900">Tabel Artis</h2>
+        <div class="flex border rounded-lg overflow-hidden text-sm">
+            <button class="px-4 py-1.5 font-medium bg-white text-gray-700 border-r">Tabel</button>
+            <button class="px-4 py-1.5 font-medium text-gray-400">Daftar</button>
+        </div>
+    </div>
+
+    <div class="flex items-center justify-between mb-4">
+        <input type="text" placeholder="Cari nama atau genre..."
+            class="border rounded-lg px-3 py-2 w-72 text-sm">
+        <p class="text-sm text-gray-400">{{ artists|length }} artis ditemukan</p>
+    </div>
+
+    <table class="w-full">
+        <thead>
+            <tr class="border-b">
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3 w-1/2">Artis</th>
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3">Genre</th>
+                <th class="pb-3 w-20"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for artist in artists %}
+            {% cycle 'bg-indigo-600' 'bg-blue-600' 'bg-blue-700' 'bg-indigo-700' 'bg-violet-600' 'bg-sky-600' as avatar_color silent %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm {{ avatar_color }}">
+                            {{ artist.name|first|upper }}
+                        </div>
+                        <span class="text-sm font-medium text-gray-800">{{ artist.name }}</span>
+                    </div>
+                </td>
+                <td class="py-4">
+                    {% if artist.genre %}
+                    <span class="text-xs font-semibold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-600">
+                        {{ artist.genre }}
+                    </span>
+                    {% else %}
+                    <span class="text-xs text-gray-400">-</span>
+                    {% endif %}
+                </td>
+                <td class="py-4 text-right">
+                    {% if 'administrator' in request.session.roles %}
+                    <div class="flex items-center justify-end gap-3">
+                        <button hx-get="{% url 'events:artist_edit' artist.artist_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+                            class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </button>
+                        <button hx-get="{% url 'events:artist_delete' artist.artist_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+                            class="text-red-400 hover:text-red-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="py-10 text-center text-sm text-gray-400">Belum ada artis.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="modal-root"></div>
+{% endblock %}

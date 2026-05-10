@@ -1,0 +1,100 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6 overflow-y-auto max-h-[90vh]">
+        <div class="flex items-center justify-between mb-5 border-b pb-3">
+            <div>
+                <h2 class="text-xl font-bold">
+                    {% if mode == 'create' %}Buat Acara Baru{% else %}Edit Acara{% endif %}
+                </h2>
+                <p class="text-sm text-gray-500">Silakan lengkapi detail event</p>
+            </div>
+            <button data-close-modal class="text-gray-400 hover:text-red-500 text-3xl leading-none transition-colors">&times;</button>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <!-- Judul Event -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">Judul Acara</label>
+                    <input type="text" name="event_title" value="{{ event.event_title|default:'' }}"
+                        class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                </div>
+
+                <!-- Deskripsi -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">Deskripsi</label>
+                    <textarea name="description" rows="2" 
+                        class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none">{{ event.description|default:'' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Tanggal & Waktu -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tanggal & Waktu</label>
+                        <input type="datetime-local" name="event_datetime" 
+                            value="{{ event.event_datetime|date:'Y-m-d\TH:i' }}"
+                            class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                    </div>
+
+                    <!-- Image URL -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">URL Gambar</label>
+                        <input type="url" name="image" value="{{ event.image|default:'' }}" placeholder="https://..."
+                            class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Venue -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Venue</label>
+                        <select name="venue_id" class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                            <option value="">Pilih Venue</option>
+                            {% for v in venues %}
+                            <option value="{{ v.venue_id }}" {% if event.venue_id == v.venue_id %}selected{% endif %}>
+                                {{ v.venue_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Organizer -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Organizer</label>
+                        <select name="organizer_id" class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none" required>
+                            <option value="">Pilih Organizer</option>
+                            {% for org in organizers %}
+                            <option value="{{ org.organizer_id }}" {% if event.organizer_id == org.organizer_id %}selected{% endif %}>
+                                {{ org.organizer_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Performers -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">Performer (Pisahkan dengan koma)</label>
+                    <input type="text" name="performers" value="{{ performers_text }}" placeholder="Contoh: NOAH, Tulus, RAN"
+                        class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <!-- Ticket Categories -->
+                <div>
+                    <label class="block text-sm font-medium mb-1">Kategori Tiket (Pisahkan dengan koma)</label>
+                    <input type="text" name="ticket_categories" value="{{ ticket_categories_text }}" placeholder="Contoh: VIP, Festival, Reguler"
+                        class="border border-gray-300 rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-6 mt-4 border-t">
+                <button type="button" data-close-modal class="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700 font-medium">
+                    Batal
+                </button>
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 font-medium">
+                    {% if mode == 'create' %}Buat Event{% else %}Simpan Perubahan{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

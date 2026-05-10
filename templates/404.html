@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}404 - Halaman Tidak Ditemukan{% endblock %}
+{% block content %}
+<div class="text-center py-20">
+  <h1 class="text-6xl font-bold text-gray-300">404</h1>
+  <p class="text-gray-500 mt-4">Halaman tidak ditemukan.</p>
+  <a href="{% url 'accounts:dashboard' %}" class="mt-6 inline-block text-indigo-600 hover:underline">Kembali ke Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,201 @@
+<div class="space-y-4">
+  {% for ticket in tickets %}
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
+        
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start gap-4">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 5V4a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v1H6a2 2 0 0 0-2 2v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h2v1a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1h2a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2h-2Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 9h6M9 15h6M12 7v10" />
+              </svg>
+            </div>
+
+            <div class="min-w-0">
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                {% if ticket.status == "Valid" %}
+                  <span class="inline-flex rounded-md bg-green-50 px-2 py-1 text-[10px] font-extrabold uppercase leading-none text-green-600">
+                    VALID
+                  </span>
+                {% else %}
+                  <span class="inline-flex rounded-md bg-slate-100 px-2 py-1 text-[10px] font-extrabold uppercase leading-none text-slate-500">
+                    TERPAKAI
+                  </span>
+                {% endif %}
+
+                <span class="inline-flex rounded-md bg-blue-50 px-2 py-1 text-[10px] font-extrabold uppercase leading-none text-blue-600">
+                  {{ ticket.category_name }}
+                </span>
+              </div>
+
+              <h3 class="text-2xl font-extrabold leading-tight text-slate-950">
+                {{ ticket.event_title }}
+              </h3>
+              <p class="mt-1 text-sm font-semibold text-slate-400">
+                {{ ticket.ticket_code }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-6 grid grid-cols-2 gap-x-8 gap-y-5 md:grid-cols-3">
+            <div>
+              <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Jadwal
+              </p>
+              <div class="mt-1 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 2v3m8-3v3M3.5 9.5h17M5 5h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+                </svg>
+                <p class="text-sm font-bold text-slate-700">
+                  {{ ticket.event_datetime }}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Lokasi
+              </p>
+              <div class="mt-1 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 21s6-5.686 6-11a6 6 0 1 0-12 0c0 5.314 6 11 6 11Z" />
+                  <circle cx="12" cy="10" r="2.5" stroke-width="1.8"></circle>
+                </svg>
+                <p class="text-sm font-bold text-slate-700">
+                  {{ ticket.venue_name }}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Kursi
+              </p>
+              <p class="mt-1 text-sm font-bold text-slate-700">
+                {{ ticket.seat_label }}
+              </p>
+            </div>
+
+            <div>
+              <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Harga
+              </p>
+              <p class="mt-1 text-sm font-extrabold text-slate-950">
+                {{ ticket.price }}
+              </p>
+            </div>
+
+            <div>
+              <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Order
+              </p>
+              <p class="mt-1 text-sm font-bold text-slate-700">
+                {{ ticket.order_code }}
+              </p>
+            </div>
+
+            <div>
+              <p class="text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Pelanggan
+              </p>
+              <p class="mt-1 text-sm font-bold text-slate-700">
+                {{ ticket.customer_name }}
+              </p>
+            </div>
+          </div>
+
+          {% if is_customer_view %}
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm11-2h2v2h-2v-2Zm3 0h2v2h-2v-2Zm-3 3h2v4h-5v-2h3v-2Zm-5-3h2v2h-2v-2Zm0 3h2v2h-2v-2Zm8 0h2v2h-2v-2Z"/>
+                </svg>
+                Tampilkan QR
+              </button>
+
+              <button
+                type="button"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
+                title="Download"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
+                title="Bagikan"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <circle cx="18" cy="5" r="2.2" stroke-width="1.8"></circle>
+                  <circle cx="6" cy="12" r="2.2" stroke-width="1.8"></circle>
+                  <circle cx="18" cy="19" r="2.2" stroke-width="1.8"></circle>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 11l8-5M8 13l8 5" />
+                </svg>
+              </button>
+            </div>
+          {% endif %}
+
+          {% if can_manage_ticket %}
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+              <a
+                href="{% url 'tickets:ticket_edit' ticket.ticket_id %}?role={{ page_role }}"
+                class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M16.862 4.487a2.25 2.25 0 1 1 3.182 3.182L9.75 17.963 5 19l1.037-4.75 10.825-10.763Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M15 6l3 3" />
+                </svg>
+                Update
+              </a>
+
+              <a
+                href="{% url 'tickets:ticket_delete' ticket.ticket_id %}?role={{ page_role }}"
+                class="inline-flex items-center gap-2 rounded-full border border-red-100 bg-white px-4 py-2.5 text-sm font-bold text-red-500 shadow-sm transition hover:bg-red-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.9" d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
+                </svg>
+                Hapus
+              </a>
+            </div>
+          {% endif %}
+        </div>
+
+        {% if is_customer_view %}
+          <div class="flex w-full shrink-0 items-center justify-center lg:w-36">
+            <div class="flex h-full min-h-[170px] w-full max-w-[130px] flex-col items-center justify-center rounded-2xl bg-slate-50 px-4 py-5">
+              <div class="grid h-20 w-20 grid-cols-3 gap-1 rounded-xl bg-white p-3 shadow-sm">
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-white"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+                <span class="rounded-sm bg-slate-900"></span>
+              </div>
+
+              <p class="mt-3 text-[11px] font-extrabold uppercase tracking-wide text-slate-400">
+                Scan Entry
+              </p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <p class="text-sm font-semibold text-slate-500">
+        Belum ada data tiket.
+      </p>
+    </div>
+  {% endfor %}
+</div>

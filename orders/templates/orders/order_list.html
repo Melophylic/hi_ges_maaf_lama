@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+
+{% block title %}Daftar Order | TikTakTuk{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex justify-between items-center">
+  <div>
+    {% if role == 'customer' %}
+      <h1 class="text-2xl font-bold text-gray-900">Daftar Order</h1>
+      <p class="text-sm text-gray-500">Riwayat pembelian tiket Anda</p>
+    {% elif role == 'organizer' %}
+      <h1 class="text-2xl font-bold text-gray-900">Daftar Order</h1>
+      <p class="text-sm text-gray-500">Order dari event yang Anda selenggarakan</p>
+    {% else %}
+      <h1 class="text-2xl font-bold text-gray-900">Daftar Order</h1>
+      <p class="text-sm text-gray-500">Semua order yang terdaftar pada sistem</p>
+    {% endif %}
+  </div>
+
+  {% if role == 'customer' %}
+    <a href="{% url 'orders:checkout' %}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+      + Buat Order
+    </a>
+  {% endif %}
+</div>
+
+  <div class="flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Daftar Order</h1>
+      <p class="text-sm text-gray-500">Lihat daftar pesanan tiket sesuai role pengguna</p>
+    </div>
+
+    {% if role == 'customer' %}
+      <a href="{% url 'orders:checkout' %}?role={{ role }}" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+        + Buat Order
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl border shadow-sm p-5">
+      <p class="text-sm text-gray-500">Total Order</p>
+      <p class="text-2xl font-bold">{{ total_orders }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-5">
+      <p class="text-sm text-gray-500">Lunas</p>
+      <p class="text-2xl font-bold">{{ total_paid }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-5">
+      <p class="text-sm text-gray-500">Pending</p>
+      <p class="text-2xl font-bold">{{ total_pending }}</p>
+    </div>
+
+    <div class="bg-white rounded-xl border shadow-sm p-5">
+      <p class="text-sm text-gray-500">Total Revenue</p>
+      <p class="text-2xl font-bold">{{ total_revenue_display }}</p>
+    </div>
+  </div>
+
+  <form method="get" class="bg-white rounded-xl border shadow-sm p-4 flex gap-3">
+    <input type="hidden" name="role" value="{{ role }}">
+
+    <input
+      type="text"
+      name="q"
+      value="{{ search }}"
+      placeholder="Cari order ID, customer, atau event..."
+      class="flex-1 border rounded-lg px-3 py-2 text-sm"
+    >
+
+    <select name="status" class="border rounded-lg px-3 py-2 text-sm">
+      <option value="all">Semua Status</option>
+      <option value="PAID" {% if filter_status == 'PAID' %}selected{% endif %}>Lunas</option>
+      <option value="PENDING" {% if filter_status == 'PENDING' %}selected{% endif %}>Pending</option>
+      <option value="CANCELLED" {% if filter_status == 'CANCELLED' %}selected{% endif %}>Dibatalkan</option>
+    </select>
+
+    <button class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm">
+      Filter
+    </button>
+  </form>
+
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-50 text-gray-600">
+        <tr>
+          <th class="text-left px-4 py-3">Order ID</th>
+
+          {% if role != 'customer' %}
+            <th class="text-left px-4 py-3">Customer</th>
+          {% endif %}
+
+          <th class="text-left px-4 py-3">Event</th>
+          <th class="text-left px-4 py-3">Tanggal Order</th>
+          <th class="text-left px-4 py-3">Status</th>
+          <th class="text-left px-4 py-3">Total</th>
+
+          {% if role == 'admin' %}
+            <th class="text-right px-4 py-3">Action</th>
+          {% endif %}
+        </tr>
+      </thead>
+
+      <tbody class="divide-y">
+        {% for order in orders %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-semibold text-indigo-600">
+            {{ order.order_id }}
+          </td>
+
+          {% if role != 'customer' %}
+            <td class="px-4 py-3">{{ order.customer_name }}</td>
+          {% endif %}
+
+          <td class="px-4 py-3">{{ order.event_name }}</td>
+          <td class="px-4 py-3">{{ order.order_date }}</td>
+
+          <td class="px-4 py-3">
+            {% if order.payment_status == 'PAID' %}
+              <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Lunas</span>
+            {% elif order.payment_status == 'PENDING' %}
+              <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">Pending</span>
+            {% else %}
+              <span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">Dibatalkan</span>
+            {% endif %}
+          </td>
+
+          <td class="px-4 py-3">
+            Rp {{ order.total_amount }}
+          </td>
+
+          {% if role == 'admin' %}
+          <td class="px-4 py-3 text-right space-x-2">
+            <button
+              type="button"
+              onclick="openModal('updateOrder{{ forloop.counter }}')"
+              class="text-indigo-600 hover:underline"
+            >
+              Update
+            </button>
+
+            <button
+              type="button"
+              onclick="openModal('deleteOrder{{ forloop.counter }}')"
+              class="text-red-600 hover:underline"
+            >
+              Delete
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+            Tidak ada order.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{% if role == 'admin' %}
+  {% for order in orders %}
+
+  <div id="updateOrder{{ forloop.counter }}" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+    <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-lg">
+      <h2 class="text-xl font-bold mb-1">Update Status Order</h2>
+      <p class="text-sm text-gray-500 mb-5">{{ order.order_id }}</p>
+
+      <form
+        class="ajax-form space-y-4"
+        method="post"
+        action="{% url 'orders:order_update' order.order_id %}"
+        data-modal="updateOrder{{ forloop.counter }}"
+      >
+        {% csrf_token %}
+
+        <div>
+          <label class="text-sm font-medium">Customer</label>
+          <input
+            value="{{ order.customer_name }}"
+            disabled
+            class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100"
+          >
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Event</label>
+          <input
+            value="{{ order.event_name }}"
+            disabled
+            class="w-full border rounded-lg px-3 py-2 mt-1 bg-gray-100"
+          >
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Payment Status</label>
+          <select name="payment_status" class="w-full border rounded-lg px-3 py-2 mt-1">
+            {% for status in payment_statuses %}
+              <option value="{{ status }}" {% if order.payment_status == status %}selected{% endif %}>
+                {{ status }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            type="button"
+            onclick="closeModal('updateOrder{{ forloop.counter }}')"
+            class="px-4 py-2 border rounded-lg"
+          >
+            Batal
+          </button>
+
+          <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">
+            Simpan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="deleteOrder{{ forloop.counter }}" class="hidden fixed inset-0 bg-black/50 z-50 items-center justify-center">
+    <div class="bg-white rounded-xl p-6 w-full max-w-lg shadow-lg">
+      <h2 class="text-xl font-bold text-red-600 mb-2">Hapus Order</h2>
+
+      <p class="text-gray-600 mb-6">
+        Yakin ingin menghapus order
+        <span class="font-semibold">{{ order.order_id }}</span>
+        milik
+        <span class="font-semibold">{{ order.customer_name }}</span>?
+      </p>
+
+      <form
+        class="ajax-form flex justify-end gap-3"
+        method="post"
+        action="{% url 'orders:order_delete' order.order_id %}"
+        data-modal="deleteOrder{{ forloop.counter }}"
+      >
+        {% csrf_token %}
+
+        <button
+          type="button"
+          onclick="closeModal('deleteOrder{{ forloop.counter }}')"
+          class="px-4 py-2 border rounded-lg"
+        >
+          Batal
+        </button>
+
+        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg">
+          Hapus
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  document.querySelectorAll('.ajax-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const modalId = form.dataset.modal;
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (data) {
+        if (data.success) {
+          closeModal(modalId);
+          alert(data.message);
+          window.location.reload();
+        } else {
+          alert(data.message || 'Gagal memproses request.');
+        }
+      })
+      .catch(function () {
+        alert('Terjadi error saat memproses request.');
+      });
+    });
+  });
+</script>
+{% endblock %}

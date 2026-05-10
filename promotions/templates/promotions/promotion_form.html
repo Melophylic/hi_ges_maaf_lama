@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  {% if mode == 'create' %}Buat Promo{% else %}Edit Promo{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto bg-white rounded-xl shadow-sm border p-6">
+  <h1 class="text-xl font-bold mb-1">
+    {% if mode == 'create' %}Buat Promo Baru{% else %}Edit Promo{% endif %}
+  </h1>
+
+  <p class="text-sm text-gray-500 mb-6">Isi data promosi TikTakTuk</p>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label class="text-sm font-medium">Kode Promo</label>
+      <input
+        name="promo_code"
+        required
+        value="{{ promotion.promo_code|default:'' }}"
+        class="w-full border rounded-lg px-3 py-2 mt-1"
+      >
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Tipe Diskon</label>
+      <select name="discount_type" required class="w-full border rounded-lg px-3 py-2 mt-1">
+        <option value="PERCENTAGE" {% if promotion.discount_type == 'PERCENTAGE' %}selected{% endif %}>
+          Persentase
+        </option>
+        <option value="NOMINAL" {% if promotion.discount_type == 'NOMINAL' %}selected{% endif %}>
+          Nominal
+        </option>
+      </select>
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Nilai Diskon</label>
+      <input
+        type="number"
+        name="discount_value"
+        required
+        min="1"
+        value="{{ promotion.discount_value|default:'' }}"
+        class="w-full border rounded-lg px-3 py-2 mt-1"
+      >
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="text-sm font-medium">Tanggal Mulai</label>
+        <input
+          type="date"
+          name="start_date"
+          required
+          value="{{ promotion.start_date|default:'' }}"
+          class="w-full border rounded-lg px-3 py-2 mt-1"
+        >
+      </div>
+
+      <div>
+        <label class="text-sm font-medium">Tanggal Berakhir</label>
+        <input
+          type="date"
+          name="end_date"
+          required
+          value="{{ promotion.end_date|default:'' }}"
+          class="w-full border rounded-lg px-3 py-2 mt-1"
+        >
+      </div>
+    </div>
+
+    <div>
+      <label class="text-sm font-medium">Batas Penggunaan</label>
+      <input
+        type="number"
+        name="usage_limit"
+        required
+        min="1"
+        value="{{ promotion.usage_limit|default:'' }}"
+        class="w-full border rounded-lg px-3 py-2 mt-1"
+      >
+    </div>
+
+    <div class="flex justify-end gap-3 pt-4">
+      <a href="{% url 'promotions:promotion_list' %}?role={{ role }}"
+         class="px-4 py-2 border rounded-lg">
+        Batal
+      </a>
+
+      <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg">
+        {% if mode == 'create' %}Buat{% else %}Simpan{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+<div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+     onclick="if(event.target===this) document.getElementById('modal-root').innerHTML=''">
+    <div class="bg-white rounded-2xl w-full max-w-md mx-4 p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-bold text-gray-900">
+                {% if action == 'edit' %}Edit Artis{% else %}Tambah Artis Baru{% endif %}
+            </h2>
+            <button type="button" onclick="document.getElementById('modal-root').innerHTML=''"
+                class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form method="post" action="{% if action == 'edit' %}{% url 'events:artist_edit' artist.artist_id %}{% else %}{% url 'events:artist_create' %}{% endif %}">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    Nama Artis <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="name" required
+                    value="{% if action == 'edit' %}{{ artist.name }}{% endif %}"
+                    placeholder="cth. Fourtwnty"
+                    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-6">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Genre</label>
+                <input type="text" name="genre"
+                    value="{% if action == 'edit' %}{{ artist.genre }}{% endif %}"
+                    placeholder="cth. Indie Folk"
+                    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="document.getElementById('modal-root').innerHTML=''"
+                    class="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">
+                    Batal
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700">
+                    {% if action == 'edit' %}Simpan Perubahan{% else %}Tambah Artis{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

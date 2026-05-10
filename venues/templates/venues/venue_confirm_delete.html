@@ -1,0 +1,26 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6">
+        <div class="mb-5">
+            <h2 class="text-xl font-bold text-red-600">Hapus Venue</h2>
+            <p class="text-sm text-gray-500">Konfirmasi penghapusan data venue.</p>
+        </div>
+
+        <div class="rounded-xl border bg-gray-50 p-4 mb-6 text-sm space-y-1">
+            <p><span class="font-medium">Venue ID:</span> {{ venue.venue_id }}</p>
+            <p><span class="font-medium">Nama:</span> {{ venue.venue_name }}</p>
+            <p><span class="font-medium">Kota:</span> {{ venue.city }}</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex gap-2">
+                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                    Hapus
+                </button>
+                <button type="button" data-close-modal class="border px-4 py-2 rounded-lg hover:bg-gray-50">
+                    Batal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

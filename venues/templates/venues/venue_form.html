@@ -1,0 +1,61 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6">
+        <div class="flex items-center justify-between mb-5">
+            <div>
+                <h2 class="text-xl font-bold">
+                    {% if mode == 'create' %}Tambah Venue{% else %}Edit Venue{% endif %}
+                </h2>
+                <p class="text-sm text-gray-500">Modal frontend dummy</p>
+            </div>
+            <button data-close-modal class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Nama Venue</label>
+                    <input type="text" name="venue_name" value="{{ venue.venue_name|default:'' }}"
+                        class="border rounded-lg px-3 py-2 w-full" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Alamat</label>
+                    <textarea name="address" rows="3" class="border rounded-lg px-3 py-2 w-full" required>{{ venue.address|default:'' }}</textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Kota</label>
+                        <input type="text" name="city" value="{{ venue.city|default:'' }}"
+                            class="border rounded-lg px-3 py-2 w-full" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Kapasitas</label>
+                        <input type="number" min="1" name="capacity" value="{{ venue.capacity|default:'' }}"
+                            class="border rounded-lg px-3 py-2 w-full" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Jenis Seating</label>
+                    <select name="seating_type" class="border rounded-lg px-3 py-2 w-full" required>
+                        <option value="">Pilih seating</option>
+                        <option value="reserved" {% if venue.seating_type == 'reserved' %}selected{% endif %}>Reserved Seating</option>
+                        <option value="free" {% if venue.seating_type == 'free' %}selected{% endif %}>Free Seating</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-6">
+                <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                    {% if mode == 'create' %}Tambah{% else %}Simpan{% endif %}
+                </button>
+                <button type="button" data-close-modal class="border px-4 py-2 rounded-lg hover:bg-gray-50">
+                    Batal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

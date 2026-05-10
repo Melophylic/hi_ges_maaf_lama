@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="bg-slate-900 text-white rounded-2xl p-6 mb-6 flex justify-between items-start">
+  <div>
+    <p class="text-sm text-slate-300">Dashboard Penyelenggara</p>
+    <h1 class="text-2xl font-bold">{{ user.name }}</h1>
+    <p class="text-sm text-slate-300">Kelola 3 acara aktif Anda</p>
+  </div>
+  <div class="flex gap-2">
+    <button class="bg-white text-slate-900 px-4 py-2 rounded-full text-sm">Kelola Acara</button>
+    <button class="bg-slate-700 text-white px-4 py-2 rounded-full text-sm">Venue</button>
+  </div>
+</section>
+
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Acara Aktif</p>
+    <h2 class="text-2xl font-bold">3</h2>
+    <p class="text-xs text-gray-400">Dalam koordinasi</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Tiket Terjual</p>
+    <h2 class="text-2xl font-bold">1.243</h2>
+    <p class="text-xs text-gray-400">Total terjual</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Revenue</p>
+    <h2 class="text-2xl font-bold">Rp 4.8M</h2>
+    <p class="text-xs text-gray-400">Bulan ini</p>
+  </div>
+  <div class="bg-white p-5 rounded-xl shadow-sm border">
+    <p class="text-xs text-gray-500">Venue Mitra</p>
+    <h2 class="text-2xl font-bold">3</h2>
+    <p class="text-xs text-gray-400">Lokasi aktif</p>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border p-5">
+  <div class="flex justify-between mb-4">
+    <div>
+      <h3 class="font-bold">Performa Acara</h3>
+      <p class="text-sm text-gray-500">Status acara yang Anda kelola</p>
+    </div>
+    <a href="#" class="text-sm text-blue-600">Lihat Semua</a>
+  </div>
+
+  <div class="space-y-4 text-sm">
+    <div class="flex justify-between border-b pb-3">
+      <div>
+        <b>Jakarta Music Fest 2026</b>
+        <p class="text-gray-500">10 Mei 2026 • Istora Senayan</p>
+      </div>
+      <span class="text-green-600 text-xs font-bold">LIVE</span>
+    </div>
+
+    <div class="flex justify-between border-b pb-3">
+      <div>
+        <b>Classic Harmony Jakarta</b>
+        <p class="text-gray-500">3 Juli 2026 • Gedung Kesenian Jakarta</p>
+      </div>
+      <span class="text-green-600 text-xs font-bold">LIVE</span>
+    </div>
+
+    <div class="flex justify-between">
+      <div>
+        <b>Campus Festival Purwokerto</b>
+        <p class="text-gray-500">20 Juli 2026 • Jakarta Convention Center</p>
+      </div>
+      <span class="text-yellow-600 text-xs font-bold">DUE</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

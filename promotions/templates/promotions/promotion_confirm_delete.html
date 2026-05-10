@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Hapus Promo{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white rounded-xl shadow-sm border p-6">
+  <h1 class="text-xl font-bold text-red-600 mb-2">Hapus Promo</h1>
+
+  <p class="text-gray-600 mb-6">
+    Apakah Anda yakin ingin menghapus kode promo
+    <span class="font-semibold">{{ promotion.promo_code }}</span>?
+    Tindakan ini tidak dapat dibatalkan.
+  </p>
+
+  <form method="post" class="flex justify-end gap-3">
+    {% csrf_token %}
+
+    <a href="{% url 'promotions:promotion_list' %}?role={{ role }}"
+       class="px-4 py-2 border rounded-lg">
+      Batal
+    </a>
+
+    <button class="px-4 py-2 bg-red-600 text-white rounded-lg">
+      Hapus
+    </button>
+  </form>
+</div>
+{% endblock %}

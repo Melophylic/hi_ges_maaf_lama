@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Kategori Tiket{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Kategori Tiket</h1>
+        <p class="text-sm text-gray-500">Kelola kategori dan harga tiket per acara</p>
+    </div>
+    {% if 'administrator' in request.session.roles or 'organizer' in request.session.roles %}
+    <button hx-get="{% url 'tickets:ticket_category_create' %}" hx-target="#modal-root" hx-swap="innerHTML"
+        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+        + Tambah Kategori
+    </button>
+    {% endif %}
+</div>
+
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-white border rounded-xl p-5">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-1">Total Kategori</p>
+        <p class="text-2xl font-bold text-gray-900">{{ total_kategori }}</p>
+    </div>
+    <div class="bg-white border rounded-xl p-5">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-1">Total Kuota</p>
+        <p class="text-2xl font-bold text-gray-900">{{ total_kuota }}</p>
+    </div>
+    <div class="bg-white border rounded-xl p-5">
+        <p class="text-xs text-gray-400 uppercase font-medium mb-1">Harga Tertinggi</p>
+        <p class="text-2xl font-bold text-gray-900">Rp {{ harga_tertinggi }}</p>
+    </div>
+</div>
+
+<div class="bg-white border rounded-xl p-6">
+    <form method="get" class="flex items-center gap-3 mb-4">
+        <div class="relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" name="q" placeholder="Cari kategori..."
+                class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <select name="event_id" onchange="this.form.submit()"
+            class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Semua Acara</option>
+            {% for event in events %}
+            <option value="{{ event.event_id }}" {% if event_filter == event.event_id %}selected{% endif %}>
+                {{ event.event_title }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-gray-400">{{ categories|length }} kategori ditemukan</p>
+        <div class="flex border rounded-lg overflow-hidden text-sm">
+            <button class="px-4 py-1.5 font-medium bg-white text-gray-700 border-r">Tabel</button>
+            <button class="px-4 py-1.5 font-medium text-gray-400">Daftar</button>
+        </div>
+    </div>
+
+    <table class="w-full">
+        <thead>
+            <tr class="border-b">
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3">Kategori</th>
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3">Acara</th>
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3">Harga</th>
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3">Kuota</th>
+                <th class="text-left text-xs text-gray-400 uppercase font-medium pb-3">Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr class="border-b hover:bg-gray-50">
+                <td class="py-4 font-semibold text-sm text-gray-900">{{ cat.category_name }}</td>
+                <td class="py-4 text-sm text-gray-600">{{ cat.event_title }}</td>
+                <td class="py-4 text-sm font-medium text-blue-600">Rp {{ cat.price }}</td>
+                <td class="py-4 text-sm text-gray-600">{{ cat.quota }} tiket</td>
+                <td class="py-4">
+                    {% if 'administrator' in request.session.roles or 'organizer' in request.session.roles %}
+                    <div class="flex items-center gap-3">
+                        <button hx-get="{% url 'tickets:ticket_category_edit' cat.category_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+                            class="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit
+                        </button>
+                        <button hx-get="{% url 'tickets:ticket_category_delete' cat.category_id %}" hx-target="#modal-root" hx-swap="innerHTML"
+                            class="flex items-center gap-1 text-red-400 hover:text-red-600 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Hapus
+                        </button>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="py-10 text-center text-sm text-gray-400">Belum ada kategori tiket.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="modal-root"></div>
+{% endblock %}
