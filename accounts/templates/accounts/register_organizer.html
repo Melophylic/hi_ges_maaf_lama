@@ -5,14 +5,17 @@
   <h1 class="text-xl font-bold mt-4">Daftar sebagai Penyelenggara</h1>
   <p class="text-sm text-slate-500 mb-5">Buat akun baru untuk mengelola acara Anda</p>
 
+  {% if error %}
+  <div class="bg-red-50 border border-red-300 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">{{ error }}</div>
+  {% endif %}
+
   <form method="post" class="space-y-4">
     {% csrf_token %}
-    <input class="w-full border rounded-lg px-3 py-2" placeholder="Nama organizer" required>
-    <input class="w-full border rounded-lg px-3 py-2" placeholder="Email kontak" required>
-    <input class="w-full border rounded-lg px-3 py-2" placeholder="Nomor telepon" required>
-    <input class="w-full border rounded-lg px-3 py-2" placeholder="Username" required>
-    <input type="password" class="w-full border rounded-lg px-3 py-2" placeholder="Password" required>
-    <input type="password" class="w-full border rounded-lg px-3 py-2" placeholder="Konfirmasi Password" required>
+    <input name="organizer_name" class="w-full border rounded-lg px-3 py-2" placeholder="Nama organizer" required>
+    <input name="contact_email" class="w-full border rounded-lg px-3 py-2" placeholder="Email kontak" required>
+    <input name="username" class="w-full border rounded-lg px-3 py-2" placeholder="Username" required>
+    <input name="password" type="password" class="w-full border rounded-lg px-3 py-2" placeholder="Password" required>
+    <input name="confirm_password" type="password" class="w-full border rounded-lg px-3 py-2" placeholder="Konfirmasi Password" required>
     <button class="w-full bg-black text-white py-2 rounded-lg">Daftar</button>
   </form>
 </div>

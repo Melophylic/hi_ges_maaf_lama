@@ -1,76 +1,58 @@
 from functools import wraps
 from django.shortcuts import redirect
+from core.db import fetch_one
 
-DUMMY_USERS = [
-    {
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa7",
-        "username": "putri",
-        "password": "lastname",
-        "role": "administrator",
-        "name": "Putri",
-        "email": "admin@tiktaktuk.com",
-        "phone": "-",
-    },
 
-    # ORGANIZER
-    {
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
-        "username": "nadzim",
-        "password": "programmerhandal",
-        "role": "organizer",
-        "name": "PT Nada Penuh Cerita",
-        "email": "hello@nadapenuhcerta.com",
-        "phone": "08122222222",
-        "organizer_id": "40000000-0000-0000-0000-000000000001",
-    },
-    {
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6",
-        "username": "gilangbiru",
-        "password": "bluespax",
-        "role": "organizer",
-        "name": "Sunset Wave Organizer",
-        "email": "contact@sunsetwave.id",
-        "phone": "08166666666",
-        "organizer_id": "40000000-0000-0000-0000-000000000002",
-    },
+def authenticate_user(username, password):
+    user = fetch_one("""
+        SELECT ua.user_id, ua.username, r.role_name AS role
+        FROM USER_ACCOUNT ua
+        JOIN ACCOUNT_ROLE ar ON ua.user_id = ar.user_id
+        JOIN ROLE r ON ar.role_id = r.role_id
+        WHERE LOWER(ua.username) = LOWER(%s) AND ua.password = %s
+        LIMIT 1
+    """, [username, password])
 
-    # CUSTOMER
-    {
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
-        "username": "syafiq",
-        "password": "panjangpanjangin",
-        "role": "customer",
-        "name": "Syafiq Faqih",
-        "email": "syafiq@example.com",
-        "phone": "08123456789",
-        "customer_id": "dddddddd-dddd-dddd-dddd-ddddddddddd1",
-    },
-    {
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
-        "username": "elizabeth",
-        "password": "artisdepok",
-        "role": "customer",
-        "name": "Elizabeth Meilanny",
-        "email": "elizabeth@example.com",
-        "phone": "08133333333",
-        "customer_id": "dddddddd-dddd-dddd-dddd-ddddddddddd3",
-    },
-]
+    if not user:
+        return None
+
+    if user['role'] == 'customer':
+        extra = fetch_one(
+            "SELECT customer_id, full_name AS name, phone_number FROM CUSTOMER WHERE user_id = %s",
+            [user['user_id']]
+        )
+        if extra:
+            user.update(extra)
+    elif user['role'] == 'organizer':
+        extra = fetch_one(
+            "SELECT organizer_id, organizer_name AS name, contact_email FROM ORGANIZER WHERE user_id = %s",
+            [user['user_id']]
+        )
+        if extra:
+            user.update(extra)
+    else:
+        user['name'] = user['username']
+
+    return user
+
 
 def login_user(request, user):
-    request.session["user"] = user
+    request.session['user'] = user
+
 
 def logout_user(request):
     request.session.flush()
 
+
 def get_current_user(request):
-    return request.session.get("user")
+    return request.session.get('user')
+
 
 def login_required(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not get_current_user(request):
-            return redirect("accounts:login")
+            return redirect('accounts:login')
         return view_func(request, *args, **kwargs)
     return wrapper
 
@@ -79,7 +61,7 @@ def has_role(request, *roles):
     user = get_current_user(request)
     if not user:
         return False
-    return user.get("role") in roles
+    return user.get('role') in roles
 
 
 def role_required(*roles):
@@ -87,9 +69,9 @@ def role_required(*roles):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
             if not get_current_user(request):
-                return redirect("accounts:login")
+                return redirect('accounts:login')
             if not has_role(request, *roles):
-                return redirect("accounts:login")
+                return redirect('accounts:login')
             return view_func(request, *args, **kwargs)
         return wrapper
     return decorator
