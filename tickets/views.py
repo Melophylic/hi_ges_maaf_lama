@@ -1,460 +1,434 @@
+import uuid
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.db import DatabaseError, transaction
 from django.urls import reverse
 
-
-# Ticket Category Dummy Data
-
-DUMMY_TICKET_CATEGORIES = [
-    {
-        "category_id": "cat_vip",
-        "category_name": "VIP",
-        "quota": 150,
-        "price": "Rp 750,000",
-        "event_title": "Konser Melodi Senja",
-    },
-    {
-        "category_id": "cat_ga",
-        "category_name": "General Admission",
-        "quota": 500,
-        "price": "Rp 150,000",
-        "event_title": "Festival Seni Budaya",
-    },
-    {
-        "category_id": "cat_wvip",
-        "category_name": "WVIP",
-        "quota": 50,
-        "price": "Rp 1,500,000",
-        "event_title": "Rock Legends Tour",
-    },
-]
+from core.db import fetch_all, fetch_one, execute_query
 
 
-def _find_ticket_category(category_id):
-    for category in DUMMY_TICKET_CATEGORIES:
-        if str(category["category_id"]) == str(category_id):
-            return category
+def _get_user_role(request):
+    user = request.session.get('user')
+    if user:
+        role = user.get('role', '')
+        if role == 'administrator':
+            return 'admin'
+        return role
+    role = request.GET.get('role', 'admin').strip().lower()
+    if role in ['admin', 'administrator']:
+        return 'admin'
+    return role
+
+
+def _get_customer_id(request):
+    user = request.session.get('user')
+    if user and user.get('role') == 'customer':
+        return str(user.get('customer_id', ''))
     return None
 
 
+def _fmt_price(value):
+    return f"{int(value):,}".replace(',', '.')
+
+
+def _redirect_ticket_list(page_role):
+    return redirect(f"{reverse('tickets:ticket_list')}?role={page_role}")
+
+
+# ============================================================
+# TICKET CATEGORY
+# ============================================================
+
 def ticket_category_list(request):
-    return render(request, "tickets/ticket_category_list.html", {
-        "categories": DUMMY_TICKET_CATEGORIES,
-        "stats": {
-            "total": len(DUMMY_TICKET_CATEGORIES),
-            "available": 0,
-            "revenue": 0,
-        },
-        "user_role": "administrator",
+    user_role = _get_user_role(request)
+    q         = request.GET.get('q', '').strip().lower()
+    event_filter = request.GET.get('event_id', '')
+
+    sql = """
+        SELECT tc.category_id, tc.category_name, tc.quota, tc.price,
+               e.event_id, e.event_title
+        FROM TICKET_CATEGORY tc
+        JOIN EVENT e ON tc.tevent_id = e.event_id
+        WHERE 1=1
+    """
+    params = []
+    if event_filter:
+        sql += " AND e.event_id = %s"
+        params.append(event_filter)
+    if q:
+        sql += " AND (LOWER(tc.category_name) LIKE %s OR LOWER(e.event_title) LIKE %s)"
+        params += [f'%{q}%', f'%{q}%']
+    sql += " ORDER BY e.event_title, tc.category_name"
+
+    categories = fetch_all(sql, params)
+    for cat in categories:
+        cat['price'] = _fmt_price(cat['price'])
+
+    events = fetch_all("SELECT event_id, event_title FROM EVENT ORDER BY event_title")
+
+    total_kuota     = sum(c['quota'] for c in fetch_all("SELECT quota FROM TICKET_CATEGORY"))
+    max_price_row   = fetch_one("SELECT MAX(price) AS mp FROM TICKET_CATEGORY")
+    harga_tertinggi = _fmt_price(max_price_row['mp']) if max_price_row and max_price_row['mp'] else '0'
+
+    return render(request, 'tickets/ticket_category_list.html', {
+        'categories':      categories,
+        'events':          events,
+        'event_filter':    event_filter,
+        'total_kategori':  len(fetch_all("SELECT 1 FROM TICKET_CATEGORY")),
+        'total_kuota':     total_kuota,
+        'harga_tertinggi': harga_tertinggi,
+        'user_role':       user_role,
+        'can_manage':      user_role in ['admin', 'organizer'],
     })
 
 
 def ticket_category_create(request):
-    if request.method == "POST":
-        messages.success(request, "Kategori tiket berhasil dibuat. Ini masih dummy frontend.")
-        return redirect("tickets:ticket_category_list")
+    user_role = _get_user_role(request)
+    if user_role not in ['admin', 'organizer']:
+        messages.error(request, 'Hanya Admin atau Organizer yang dapat menambah kategori tiket.')
+        return redirect('tickets:ticket_category_list')
 
-    return render(request, "tickets/ticket_category_form.html", {
-        "form_mode": "create",
-        "selected_category": {},
-        "user_role": "administrator",
+    events = fetch_all("SELECT event_id, event_title FROM EVENT ORDER BY event_title")
+
+    if request.method == 'POST':
+        tevent_id     = request.POST.get('tevent_id')
+        category_name = request.POST.get('category_name', '').strip()
+        price         = request.POST.get('price')
+        quota         = request.POST.get('quota')
+        try:
+            execute_query(
+                "INSERT INTO TICKET_CATEGORY (category_id, category_name, quota, price, tevent_id) VALUES (%s, %s, %s, %s, %s)",
+                [str(uuid.uuid4()), category_name, quota, price, tevent_id]
+            )
+            messages.success(request, 'Kategori tiket berhasil ditambahkan.')
+            return redirect('tickets:ticket_category_list')
+        except DatabaseError as e:
+            messages.error(request, str(e).split('\n')[0])
+
+    return render(request, 'tickets/ticket_category_form.html', {
+        'action': 'create', 'events': events, 'category': {}, 'user_role': user_role,
     })
 
 
 def ticket_category_edit(request, category_id):
-    selected_category = _find_ticket_category(category_id)
+    user_role = _get_user_role(request)
+    if user_role not in ['admin', 'organizer']:
+        messages.error(request, 'Hanya Admin atau Organizer yang dapat mengubah kategori tiket.')
+        return redirect('tickets:ticket_category_list')
 
-    if not selected_category:
-        messages.error(request, "Kategori tiket tidak ditemukan.")
-        return redirect("tickets:ticket_category_list")
+    category = fetch_one(
+        "SELECT tc.*, e.event_title FROM TICKET_CATEGORY tc JOIN EVENT e ON tc.tevent_id = e.event_id WHERE tc.category_id = %s",
+        [category_id]
+    )
+    if not category:
+        messages.error(request, 'Kategori tiket tidak ditemukan.')
+        return redirect('tickets:ticket_category_list')
 
-    if request.method == "POST":
-        messages.success(request, "Kategori tiket berhasil diperbarui. Ini masih dummy frontend.")
-        return redirect("tickets:ticket_category_list")
+    events = fetch_all("SELECT event_id, event_title FROM EVENT ORDER BY event_title")
 
-    return render(request, "tickets/ticket_category_form.html", {
-        "form_mode": "edit",
-        "selected_category": selected_category,
-        "user_role": "administrator",
+    if request.method == 'POST':
+        tevent_id     = request.POST.get('tevent_id')
+        category_name = request.POST.get('category_name', '').strip()
+        price         = request.POST.get('price')
+        quota         = request.POST.get('quota')
+        try:
+            execute_query(
+                "UPDATE TICKET_CATEGORY SET category_name=%s, price=%s, quota=%s, tevent_id=%s WHERE category_id=%s",
+                [category_name, price, quota, tevent_id, category_id]
+            )
+            messages.success(request, 'Kategori tiket berhasil diperbarui.')
+            return redirect('tickets:ticket_category_list')
+        except DatabaseError as e:
+            messages.error(request, str(e).split('\n')[0])
+
+    return render(request, 'tickets/ticket_category_form.html', {
+        'action': 'edit', 'events': events, 'category': category, 'user_role': user_role,
     })
 
 
 def ticket_category_delete(request, category_id):
-    selected_category = _find_ticket_category(category_id)
+    user_role = _get_user_role(request)
+    if user_role not in ['admin', 'organizer']:
+        messages.error(request, 'Hanya Admin atau Organizer yang dapat menghapus kategori tiket.')
+        return redirect('tickets:ticket_category_list')
 
-    if not selected_category:
-        messages.error(request, "Kategori tiket tidak ditemukan.")
-        return redirect("tickets:ticket_category_list")
+    category = fetch_one(
+        "SELECT tc.*, e.event_title FROM TICKET_CATEGORY tc JOIN EVENT e ON tc.tevent_id = e.event_id WHERE tc.category_id = %s",
+        [category_id]
+    )
+    if not category:
+        messages.error(request, 'Kategori tiket tidak ditemukan.')
+        return redirect('tickets:ticket_category_list')
 
-    if request.method == "POST":
-        messages.success(request, "Kategori tiket berhasil dihapus. Ini masih dummy frontend.")
-        return redirect("tickets:ticket_category_list")
+    if request.method == 'POST':
+        try:
+            execute_query("DELETE FROM TICKET_CATEGORY WHERE category_id = %s", [category_id])
+            messages.success(request, 'Kategori tiket berhasil dihapus.')
+        except DatabaseError as e:
+            messages.error(request, str(e).split('\n')[0])
+        return redirect('tickets:ticket_category_list')
 
-    return render(request, "tickets/ticket_category_confirm_delete.html", {
-        "selected_category": selected_category,
-        "user_role": "administrator",
+    return render(request, 'tickets/ticket_category_confirm_delete.html', {
+        'selected_category': category, 'user_role': user_role,
     })
 
 
 def ticket_category_partial(request):
-    return render(request, "tickets/partials/ticket_category_table.html", {
-        "categories": DUMMY_TICKET_CATEGORIES,
-        "user_role": "administrator",
+    user_role  = _get_user_role(request)
+    categories = fetch_all("""
+        SELECT tc.category_id, tc.category_name, tc.quota, tc.price, e.event_title
+        FROM TICKET_CATEGORY tc JOIN EVENT e ON tc.tevent_id = e.event_id
+        ORDER BY e.event_title, tc.category_name
+    """)
+    for cat in categories:
+        cat['price'] = _fmt_price(cat['price'])
+    return render(request, 'tickets/partials/ticket_category_table.html', {
+        'categories': categories, 'user_role': user_role,
     })
 
 
-# Ticket Dummy data
+# ============================================================
+# TICKET
+# ============================================================
 
-DUMMY_TICKET_CATEGORY_MAP = {
-    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001": {
-        "category_name": "WVIP",
-        "price": "Rp 1,500,000",
-        "label": "WVIP — Rp 1,500,000 (1/50)",
-    },
-    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002": {
-        "category_name": "VIP",
-        "price": "Rp 750,000",
-        "label": "VIP — Rp 750,000 (3/150)",
-    },
-    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb003": {
-        "category_name": "REGULER",
-        "price": "Rp 350,000",
-        "label": "REGULER — Rp 350,000 (10/500)",
-    },
-    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004": {
-        "category_name": "FESTIVAL",
-        "price": "Rp 150,000",
-        "label": "FESTIVAL — Rp 150,000 (20/1000)",
-    },
-}
-
-DUMMY_ORDER_MAP = {
-    "cccccccc-cccc-cccc-cccc-ccccccccc001": {
-        "order_code": "ord_001",
-        "customer_name": "Budi Santoso",
-        "event_title": "Konser Melodi Senja",
-        "event_datetime": "2024-05-15 19:00",
-        "venue_name": "Jakarta Convention Center",
-        "label": "ord_001 — Budi Santoso — Konser Melodi Senja",
-    },
-    "cccccccc-cccc-cccc-cccc-ccccccccc002": {
-        "order_code": "ord_002",
-        "customer_name": "Siti Rahayu",
-        "event_title": "Festival Seni Budaya",
-        "event_datetime": "2024-06-01 18:30",
-        "venue_name": "Jakarta Convention Center",
-        "label": "ord_002 — Siti Rahayu — Festival Seni Budaya",
-    },
-    "cccccccc-cccc-cccc-cccc-ccccccccc003": {
-        "order_code": "ord_003",
-        "customer_name": "Andi Wijaya",
-        "event_title": "Rock Legends Tour",
-        "event_datetime": "2024-08-15 20:00",
-        "venue_name": "Jakarta Convention Center",
-        "label": "ord_003 — Andi Wijaya — Rock Legends Tour",
-    },
-    "cccccccc-cccc-cccc-cccc-ccccccccc004": {
-        "order_code": "ord_004",
-        "customer_name": "Dewi Lestari",
-        "event_title": "Jazz Night Live",
-        "event_datetime": "2024-09-10 19:30",
-        "venue_name": "Jakarta Convention Center",
-        "label": "ord_004 — Dewi Lestari — Jazz Night Live",
-    },
-}
-
-DUMMY_TICKET_SEAT_MAP = {
-    "11111111-1111-1111-1111-111111111101": "WVIP A-1",
-    "11111111-1111-1111-1111-111111111102": "WVIP A-2",
-    "11111111-1111-1111-1111-111111111103": "WVIP A-3",
-    "11111111-1111-1111-1111-111111111104": "WVIP A-4",
-    "11111111-1111-1111-1111-111111111105": "WVIP A-5",
-    "11111111-1111-1111-1111-111111111106": "VIP B-1",
-    "11111111-1111-1111-1111-111111111107": "VIP B-2",
-    "11111111-1111-1111-1111-111111111108": "VIP B-3",
-    "11111111-1111-1111-1111-111111111109": "VIP B-4",
-    "11111111-1111-1111-1111-111111111110": "VIP B-5",
-}
-
-USED_TICKET_IDS = {
-    "11111111-1111-1111-1111-111111111103",
-    "11111111-1111-1111-1111-111111111108",
-    "11111111-1111-1111-1111-111111111112",
-    "11111111-1111-1111-1111-111111111116",
-}
-
-RAW_DUMMY_TICKETS = [
-    ("11111111-1111-1111-1111-111111111101", "TIK-A001", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001", "cccccccc-cccc-cccc-cccc-ccccccccc001"),
-    ("11111111-1111-1111-1111-111111111102", "TIK-A002", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001", "cccccccc-cccc-cccc-cccc-ccccccccc001"),
-    ("11111111-1111-1111-1111-111111111103", "TIK-A003", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002", "cccccccc-cccc-cccc-cccc-ccccccccc002"),
-    ("11111111-1111-1111-1111-111111111104", "TIK-A004", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002", "cccccccc-cccc-cccc-cccc-ccccccccc002"),
-    ("11111111-1111-1111-1111-111111111105", "TIK-A005", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb003", "cccccccc-cccc-cccc-cccc-ccccccccc003"),
-
-    ("11111111-1111-1111-1111-111111111106", "TIK-B001", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb003", "cccccccc-cccc-cccc-cccc-ccccccccc003"),
-    ("11111111-1111-1111-1111-111111111107", "TIK-B002", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004", "cccccccc-cccc-cccc-cccc-ccccccccc004"),
-    ("11111111-1111-1111-1111-111111111108", "TIK-B003", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004", "cccccccc-cccc-cccc-cccc-ccccccccc004"),
-    ("11111111-1111-1111-1111-111111111109", "TIK-B004", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001", "cccccccc-cccc-cccc-cccc-ccccccccc001"),
-    ("11111111-1111-1111-1111-111111111110", "TIK-B005", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002", "cccccccc-cccc-cccc-cccc-ccccccccc002"),
-
-    ("11111111-1111-1111-1111-111111111111", "TIK-C001", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb003", "cccccccc-cccc-cccc-cccc-ccccccccc003"),
-    ("11111111-1111-1111-1111-111111111112", "TIK-C002", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004", "cccccccc-cccc-cccc-cccc-ccccccccc004"),
-    ("11111111-1111-1111-1111-111111111113", "TIK-C003", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001", "cccccccc-cccc-cccc-cccc-ccccccccc001"),
-    ("11111111-1111-1111-1111-111111111114", "TIK-C004", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002", "cccccccc-cccc-cccc-cccc-ccccccccc002"),
-    ("11111111-1111-1111-1111-111111111115", "TIK-C005", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb003", "cccccccc-cccc-cccc-cccc-ccccccccc003"),
-
-    ("11111111-1111-1111-1111-111111111116", "TIK-D001", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004", "cccccccc-cccc-cccc-cccc-ccccccccc004"),
-    ("11111111-1111-1111-1111-111111111117", "TIK-D002", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001", "cccccccc-cccc-cccc-cccc-ccccccccc001"),
-    ("11111111-1111-1111-1111-111111111118", "TIK-D003", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002", "cccccccc-cccc-cccc-cccc-ccccccccc002"),
-    ("11111111-1111-1111-1111-111111111119", "TIK-D004", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb003", "cccccccc-cccc-cccc-cccc-ccccccccc003"),
-    ("11111111-1111-1111-1111-111111111120", "TIK-D005", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004", "cccccccc-cccc-cccc-cccc-ccccccccc004"),
-]
+def _ticket_query(extra_where='', params=None):
+    sql = """
+        SELECT
+            t.ticket_id, t.ticket_code, t.tcategory_id, t.torder_id,
+            tc.category_name, tc.price,
+            e.event_title, e.event_datetime,
+            v.venue_name,
+            c.full_name  AS customer_name,
+            o.payment_status,
+            s.section    AS seat_section,
+            s.row_number AS seat_row,
+            s.seat_number
+        FROM TICKET t
+        JOIN TICKET_CATEGORY tc ON t.tcategory_id = tc.category_id
+        JOIN EVENT e             ON tc.tevent_id   = e.event_id
+        JOIN VENUE v             ON e.venue_id      = v.venue_id
+        JOIN "ORDER" o           ON t.torder_id     = o.order_id
+        JOIN CUSTOMER c          ON o.customer_id   = c.customer_id
+        LEFT JOIN HAS_RELATIONSHIP hr ON t.ticket_id = hr.ticket_id
+        LEFT JOIN SEAT s              ON hr.seat_id  = s.seat_id
+    """
+    if extra_where:
+        sql += f" WHERE {extra_where}"
+    sql += " ORDER BY t.ticket_code"
+    return fetch_all(sql, params or [])
 
 
-def _build_dummy_tickets():
-    tickets = []
+def _build_ticket(row):
+    seat_label = '-'
+    if row.get('seat_section'):
+        seat_label = f"{row['seat_section']} {row['seat_row']}-{row['seat_number']}"
 
-    for ticket_id, ticket_code, tcategory_id, torder_id in RAW_DUMMY_TICKETS:
-        category = DUMMY_TICKET_CATEGORY_MAP[tcategory_id]
-        order = DUMMY_ORDER_MAP[torder_id]
-
-        tickets.append({
-            "ticket_id": ticket_id,
-            "ticket_code": ticket_code,
-            "tcategory_id": tcategory_id,
-            "torder_id": torder_id,
-            "event_title": order["event_title"],
-            "event_datetime": order["event_datetime"],
-            "venue_name": order["venue_name"],
-            "category_name": category["category_name"],
-            "price": category["price"],
-            "order_code": order["order_code"],
-            "customer_name": order["customer_name"],
-            "seat_label": DUMMY_TICKET_SEAT_MAP.get(ticket_id, "-"),
-            "status": "Used" if ticket_id in USED_TICKET_IDS else "Valid",
-        })
-
-    return tickets
-
-
-DUMMY_TICKETS = _build_dummy_tickets()
-
-DUMMY_ORDERS = [
-    {
-        "order_id": order_id,
-        "label": order_data["label"],
-    }
-    for order_id, order_data in DUMMY_ORDER_MAP.items()
-]
-
-DUMMY_CATEGORIES = [
-    {
-        "category_id": category_id,
-        "label": category_data["label"],
-    }
-    for category_id, category_data in DUMMY_TICKET_CATEGORY_MAP.items()
-]
-
-DUMMY_SEATS = [
-    {
-        "seat_id": "00000000-0000-0000-0000-000000000011",
-        "label": "REGULER — Baris C, No. 1",
-    },
-    {
-        "seat_id": "00000000-0000-0000-0000-000000000012",
-        "label": "REGULER — Baris C, No. 2",
-    },
-    {
-        "seat_id": "00000000-0000-0000-0000-000000000013",
-        "label": "REGULER — Baris C, No. 3",
-    },
-    {
-        "seat_id": "00000000-0000-0000-0000-000000000021",
-        "label": "FESTIVAL — Baris D, No. 1",
-    },
-    {
-        "seat_id": "00000000-0000-0000-0000-000000000022",
-        "label": "FESTIVAL — Baris D, No. 2",
-    },
-]
-
-
-def get_ticket_stats(tickets=None):
-    if tickets is None:
-        tickets = DUMMY_TICKETS
+    status = 'Valid'
+    if row['payment_status'] == 'CANCELLED':
+        status = 'Terpakai'
 
     return {
-        "total": len(tickets),
-        "valid": len([ticket for ticket in tickets if ticket["status"] == "Valid"]),
-        "used": len([ticket for ticket in tickets if ticket["status"] == "Used"]),
+        **row,
+        'price':      f"Rp {_fmt_price(row['price'])}",
+        'order_code': str(row['torder_id'])[:8].upper(),
+        'seat_label': seat_label,
+        'status':     status,
+        'event_datetime': str(row['event_datetime'])[:16],
     }
-
-
-def _get_page_role(request):
-    role = request.GET.get("role", "admin").strip().lower()
-
-    if role in ["admin", "administrator"]:
-        return "admin"
-    if role == "organizer":
-        return "organizer"
-    if role == "customer":
-        return "customer"
-
-    return "admin"
-
-
-def _filter_tickets_by_role(tickets, page_role):
-    if page_role == "customer":
-        return [
-            ticket for ticket in tickets
-            if ticket["customer_name"] == "Budi Santoso"
-        ]
-    return tickets
-
-
-def _find_ticket(ticket_id):
-    for ticket in DUMMY_TICKETS:
-        if str(ticket["ticket_id"]) == str(ticket_id):
-            return ticket
-    return None
-
-
-def _redirect_ticket_list_with_role(page_role):
-    url = reverse("tickets:ticket_list")
-    return redirect(f"{url}?role={page_role}")
 
 
 def _ticket_context(request, tickets):
-    page_role = _get_page_role(request)
-
+    user_role = _get_user_role(request)
     return {
-        "tickets": tickets,
-        "stats": get_ticket_stats(tickets),
-        "page_role": page_role,
-        "page_title": "Tiket Saya" if page_role == "customer" else "Manajemen Tiket",
-        "page_subtitle": (
-            "Kelola dan akses tiket pertunjukan Anda"
-            if page_role == "customer"
-            else "Kelola tiket: tambah, ubah status, dan hapus tiket"
-        ),
-        "is_customer_view": page_role == "customer",
-        "can_create_ticket": page_role in ["admin", "organizer"],
-        "can_manage_ticket": page_role == "admin",
-        "user_role": "administrator" if page_role == "admin" else page_role,
+        'tickets':          tickets,
+        'stats': {
+            'total': len(tickets),
+            'valid': sum(1 for t in tickets if t['status'] == 'Valid'),
+            'used':  sum(1 for t in tickets if t['status'] == 'Terpakai'),
+        },
+        'page_role':        user_role,
+        'page_title':       'Tiket Saya' if user_role == 'customer' else 'Manajemen Tiket',
+        'page_subtitle':    'Kelola dan akses tiket pertunjukan Anda' if user_role == 'customer'
+                            else 'Kelola tiket: tambah, ubah status, dan hapus tiket',
+        'is_customer_view': user_role == 'customer',
+        'can_create_ticket':user_role in ['admin', 'organizer'],
+        'can_manage_ticket':user_role == 'admin',
+        'user_role':        user_role,
     }
 
 
 def ticket_list(request):
-    page_role = _get_page_role(request)
-    q = request.GET.get("q", "").strip().lower()
-    status = request.GET.get("status", "").strip()
+    user_role   = _get_user_role(request)
+    customer_id = _get_customer_id(request)
+    q      = request.GET.get('q', '').strip().lower()
+    status = request.GET.get('status', '').strip()
 
-    tickets = _filter_tickets_by_role(DUMMY_TICKETS, page_role)
+    where_parts, params = [], []
+    if user_role == 'customer' and customer_id:
+        where_parts.append("c.customer_id = %s")
+        params.append(customer_id)
+
+    rows    = _ticket_query(' AND '.join(where_parts) if where_parts else '', params)
+    tickets = [_build_ticket(r) for r in rows]
 
     if q:
-        tickets = [
-            ticket for ticket in tickets
-            if q in ticket["ticket_code"].lower()
-            or q in ticket["event_title"].lower()
-        ]
-
+        tickets = [t for t in tickets if q in t['ticket_code'].lower() or q in t['event_title'].lower()]
     if status:
-        tickets = [
-            ticket for ticket in tickets
-            if ticket["status"] == status
-        ]
+        tickets = [t for t in tickets if t['status'] == status]
 
-    return render(request, "tickets/ticket_list.html", _ticket_context(request, tickets))
+    return render(request, 'tickets/ticket_list.html', _ticket_context(request, tickets))
 
 
 def ticket_partial(request):
-    page_role = _get_page_role(request)
-    tickets = _filter_tickets_by_role(DUMMY_TICKETS, page_role)
-
-    return render(request, "tickets/partials/ticket_cards.html", _ticket_context(request, tickets))
+    user_role   = _get_user_role(request)
+    customer_id = _get_customer_id(request)
+    where, params = '', []
+    if user_role == 'customer' and customer_id:
+        where  = "c.customer_id = %s"
+        params = [customer_id]
+    rows    = _ticket_query(where, params)
+    tickets = [_build_ticket(r) for r in rows]
+    return render(request, 'tickets/partials/ticket_cards.html', _ticket_context(request, tickets))
 
 
 def ticket_create(request):
-    page_role = _get_page_role(request)
+    user_role = _get_user_role(request)
+    if user_role not in ['admin', 'organizer']:
+        messages.error(request, 'Hanya Admin atau Organizer yang dapat membuat tiket.')
+        return _redirect_ticket_list(user_role)
 
-    if page_role not in ["admin", "organizer"]:
-        messages.error(request, "Hanya Admin atau Organizer yang dapat membuat tiket.")
-        return _redirect_ticket_list_with_role(page_role)
+    error = None
+    if request.method == 'POST':
+        torder_id    = request.POST.get('order_id')
+        tcategory_id = request.POST.get('category_id')
+        seat_id      = request.POST.get('seat_id', '').strip()
+        try:
+            ticket_id   = str(uuid.uuid4())
+            ticket_code = f"TIK-{ticket_id[:8].upper()}"
+            with transaction.atomic():
+                execute_query(
+                    "INSERT INTO TICKET (ticket_id, ticket_code, tcategory_id, torder_id) VALUES (%s, %s, %s, %s)",
+                    [ticket_id, ticket_code, tcategory_id, torder_id]
+                )
+                if seat_id:
+                    execute_query(
+                        "INSERT INTO HAS_RELATIONSHIP (seat_id, ticket_id) VALUES (%s, %s)",
+                        [seat_id, ticket_id]
+                    )
+            messages.success(request, f'Tiket {ticket_code} berhasil dibuat.')
+            return _redirect_ticket_list(user_role)
+        except DatabaseError as e:
+            error = str(e).split('\n')[0]
 
-    if request.method == "POST":
-        messages.success(request, "Tiket berhasil dibuat. Ini masih dummy frontend.")
-        return _redirect_ticket_list_with_role(page_role)
+    orders = fetch_all("""
+        SELECT o.order_id, c.full_name AS customer_name
+        FROM "ORDER" o JOIN CUSTOMER c ON o.customer_id = c.customer_id
+        ORDER BY o.order_date DESC
+    """)
+    for o in orders:
+        o['label'] = f"{str(o['order_id'])[:8].upper()} — {o['customer_name']}"
 
-    show_seat_field = request.GET.get("reserved", "1") == "1"
+    categories = fetch_all("""
+        SELECT tc.category_id, tc.category_name, tc.price, e.event_title,
+               tc.quota - COUNT(t.ticket_id) AS remaining
+        FROM TICKET_CATEGORY tc
+        JOIN EVENT e ON tc.tevent_id = e.event_id
+        LEFT JOIN TICKET t ON t.tcategory_id = tc.category_id
+        GROUP BY tc.category_id, tc.category_name, tc.price, e.event_title, tc.quota
+        ORDER BY e.event_title, tc.category_name
+    """)
+    for cat in categories:
+        cat['label'] = f"{cat['category_name']} — Rp {_fmt_price(cat['price'])} ({cat['event_title']}) [{cat['remaining']} sisa]"
 
-    tickets = _filter_tickets_by_role(DUMMY_TICKETS, page_role)
-    context = _ticket_context(request, tickets)
+    seats = fetch_all("""
+        SELECT s.seat_id, s.section, s.row_number, s.seat_number, v.venue_name
+        FROM SEAT s JOIN VENUE v ON s.venue_id = v.venue_id
+        WHERE s.seat_id NOT IN (SELECT seat_id FROM HAS_RELATIONSHIP)
+        ORDER BY s.section, s.row_number, s.seat_number
+    """)
+    for s in seats:
+        s['label'] = f"{s['section']} — Baris {s['row_number']}, No. {s['seat_number']} ({s['venue_name']})"
 
-    context.update({
-        "form_mode": "create",
-        "orders": DUMMY_ORDERS,
-        "categories": DUMMY_CATEGORIES,
-        "seats": DUMMY_SEATS,
-        "selected_ticket": {},
-        "show_seat_field": show_seat_field,
+    show_seat = request.GET.get('reserved', '1') == '1'
+    rows      = _ticket_query()
+    tickets   = [_build_ticket(r) for r in rows]
+    ctx       = _ticket_context(request, tickets)
+    ctx.update({
+        'form_mode': 'create', 'orders': orders, 'categories': categories,
+        'seats': seats, 'selected_ticket': {}, 'show_seat_field': show_seat, 'error': error,
     })
-
-    return render(request, "tickets/ticket_form.html", context)
+    return render(request, 'tickets/ticket_form.html', ctx)
 
 
 def ticket_edit(request, ticket_id):
-    page_role = _get_page_role(request)
+    user_role = _get_user_role(request)
+    if user_role != 'admin':
+        messages.error(request, 'Hanya Admin yang dapat mengubah tiket.')
+        return _redirect_ticket_list(user_role)
 
-    if page_role != "admin":
-        messages.error(request, "Hanya Admin yang dapat mengubah tiket.")
-        return _redirect_ticket_list_with_role(page_role)
+    rows = _ticket_query("t.ticket_id = %s", [ticket_id])
+    if not rows:
+        messages.error(request, 'Tiket tidak ditemukan.')
+        return _redirect_ticket_list('admin')
+    selected = _build_ticket(rows[0])
 
-    selected_ticket = _find_ticket(ticket_id)
+    error = None
+    if request.method == 'POST':
+        seat_id = request.POST.get('seat_id', '').strip()
+        try:
+            with transaction.atomic():
+                execute_query("DELETE FROM HAS_RELATIONSHIP WHERE ticket_id = %s", [ticket_id])
+                if seat_id:
+                    execute_query(
+                        "INSERT INTO HAS_RELATIONSHIP (seat_id, ticket_id) VALUES (%s, %s)",
+                        [seat_id, ticket_id]
+                    )
+            messages.success(request, 'Tiket berhasil diperbarui.')
+            return _redirect_ticket_list('admin')
+        except DatabaseError as e:
+            error = str(e).split('\n')[0]
 
-    if not selected_ticket:
-        messages.error(request, "Tiket tidak ditemukan.")
-        return _redirect_ticket_list_with_role("admin")
+    seats = fetch_all("""
+        SELECT s.seat_id, s.section, s.row_number, s.seat_number, v.venue_name
+        FROM SEAT s JOIN VENUE v ON s.venue_id = v.venue_id
+        WHERE s.seat_id NOT IN (
+            SELECT seat_id FROM HAS_RELATIONSHIP WHERE ticket_id != %s
+        )
+        ORDER BY s.section, s.row_number, s.seat_number
+    """, [ticket_id])
+    for s in seats:
+        s['label'] = f"{s['section']} — Baris {s['row_number']}, No. {s['seat_number']} ({s['venue_name']})"
 
-    if request.method == "POST":
-        messages.success(request, "Tiket berhasil diperbarui. Ini masih dummy frontend.")
-        return _redirect_ticket_list_with_role("admin")
-
-    tickets = _filter_tickets_by_role(DUMMY_TICKETS, page_role)
-    context = _ticket_context(request, tickets)
-
-    context.update({
-        "form_mode": "edit",
-        "orders": DUMMY_ORDERS,
-        "categories": DUMMY_CATEGORIES,
-        "seats": DUMMY_SEATS,
-        "selected_ticket": selected_ticket,
-        "show_seat_field": True,
+    all_tickets = [_build_ticket(r) for r in _ticket_query()]
+    ctx = _ticket_context(request, all_tickets)
+    ctx.update({
+        'form_mode': 'edit', 'selected_ticket': selected,
+        'seats': seats, 'orders': [], 'categories': [], 'show_seat_field': True, 'error': error,
     })
-
-    return render(request, "tickets/ticket_form.html", context)
+    return render(request, 'tickets/ticket_form.html', ctx)
 
 
 def ticket_delete(request, ticket_id):
-    page_role = _get_page_role(request)
+    user_role = _get_user_role(request)
+    if user_role != 'admin':
+        messages.error(request, 'Hanya Admin yang dapat menghapus tiket.')
+        return _redirect_ticket_list(user_role)
 
-    if page_role != "admin":
-        messages.error(request, "Hanya Admin yang dapat menghapus tiket.")
-        return _redirect_ticket_list_with_role(page_role)
+    rows = _ticket_query("t.ticket_id = %s", [ticket_id])
+    if not rows:
+        messages.error(request, 'Tiket tidak ditemukan.')
+        return _redirect_ticket_list('admin')
+    selected = _build_ticket(rows[0])
 
-    selected_ticket = _find_ticket(ticket_id)
+    if request.method == 'POST':
+        try:
+            execute_query("DELETE FROM TICKET WHERE ticket_id = %s", [ticket_id])
+            messages.success(request, 'Tiket berhasil dihapus.')
+        except DatabaseError as e:
+            messages.error(request, str(e).split('\n')[0])
+        return _redirect_ticket_list('admin')
 
-    if not selected_ticket:
-        messages.error(request, "Tiket tidak ditemukan.")
-        return _redirect_ticket_list_with_role("admin")
-
-    if request.method == "POST":
-        messages.success(request, "Tiket berhasil dihapus. Ini masih dummy frontend.")
-        return _redirect_ticket_list_with_role("admin")
-
-    tickets = _filter_tickets_by_role(DUMMY_TICKETS, page_role)
-    context = _ticket_context(request, tickets)
-
-    context.update({
-        "selected_ticket": selected_ticket,
-    })
-
-    return render(request, "tickets/ticket_confirm_delete.html", context)
+    all_tickets = [_build_ticket(r) for r in _ticket_query()]
+    ctx = _ticket_context(request, all_tickets)
+    ctx.update({'selected_ticket': selected})
+    return render(request, 'tickets/ticket_confirm_delete.html', ctx)
