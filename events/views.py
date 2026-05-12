@@ -1,183 +1,187 @@
-from datetime import datetime
+import uuid
 
-from django.contrib import messages
+from django.db import DatabaseError, transaction
 from django.shortcuts import render, redirect
 
 from core.auth import role_required
-from core.db import fetch_all, fetch_one, execute_query
-from venues.views import DUMMY_VENUES
-
-DUMMY_ORGANIZERS = [
-    {
-        "organizer_id": "40000000-0000-0000-0000-000000000001",
-        "organizer_name": "PT Nada Penuh Cerita",
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
-    },
-    {
-        "organizer_id": "40000000-0000-0000-0000-000000000002",
-        "organizer_name": "Sunset Wave Organizer",
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6",
-    },
-    {
-        "organizer_id": "40000000-0000-0000-0000-000000000003",
-        "organizer_name": "Ruang Bunyi",
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9",
-    },
-    {
-        "organizer_id": "40000000-0000-0000-0000-000000000004",
-        "organizer_name": "Bright Stage ID",
-        "user_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa12",
-    },
-]
-
-DUMMY_EVENTS = [
-    {
-        "event_id": "60000000-0000-0000-0000-000000000001",
-        "event_title": "Jakarta Music Fest 2026",
-        "event_datetime": datetime(2026, 5, 10, 19, 0),
-        "venue_id": "11111111-1111-1111-1111-111111111112",
-        "venue_name": "Istora Senayan",
-        "organizer_id": "40000000-0000-0000-0000-000000000001",
-        "organizer_name": "PT Nada Penuh Cerita",
-        "performers": ["NOAH", "Tulus", "RAN"],
-        "ticket_categories": [
-            {"name": "WVIP", "price": 1500000},
-            {"name": "VIP", "price": 900000},
-            {"name": "Regular", "price": 350000},
-        ],
-        "image": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=1200&q=80",
-        "description": "Festival musik malam hari dengan line up besar.",
-    },
-    {
-        "event_id": "60000000-0000-0000-0000-000000000002",
-        "event_title": "Bali Summer Sound",
-        "event_datetime": datetime(2026, 6, 1, 18, 30),
-        "venue_id": "11111111-1111-1111-1111-111111111113",
-        "venue_name": "Bali Nusa Dua Convention Center",
-        "organizer_id": "40000000-0000-0000-0000-000000000002",
-        "organizer_name": "Sunset Wave Organizer",
-        "performers": ["Nadin Amizah", "Pamungkas"],
-        "ticket_categories": [
-            {"name": "VIP", "price": 1250000},
-            {"name": "Festival", "price": 500000},
-        ],
-        "image": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
-        "description": "Konser santai di suasana tropis Bali.",
-    },
-    {
-        "event_id": "60000000-0000-0000-0000-000000000003",
-        "event_title": "Indie Night Medan",
-        "event_datetime": datetime(2026, 6, 12, 20, 0),
-        "venue_id": "11111111-1111-1111-1111-111111111114",
-        "venue_name": "Lapangan Merdeka Medan",
-        "organizer_id": "40000000-0000-0000-0000-000000000003",
-        "organizer_name": "Ruang Bunyi",
-        "performers": ["Hindia", "Juicy Luicy"],
-        "ticket_categories": [
-            {"name": "Early Bird", "price": 175000},
-            {"name": "Festival", "price": 250000},
-        ],
-        "image": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=1200&q=80",
-        "description": "Panggung musik indie untuk penikmat lagu malam.",
-    },
-    {
-        "event_id": "60000000-0000-0000-0000-000000000004",
-        "event_title": "Classic Harmony Jakarta",
-        "event_datetime": datetime(2026, 7, 3, 18, 0),
-        "venue_id": "11111111-1111-1111-1111-111111111115",
-        "venue_name": "Gedung Kesenian Jakarta",
-        "organizer_id": "40000000-0000-0000-0000-000000000001",
-        "organizer_name": "PT Nada Penuh Cerita",
-        "performers": ["Maliq & D'Essentials"],
-        "ticket_categories": [
-            {"name": "Premium", "price": 1100000},
-            {"name": "Regular", "price": 450000},
-        ],
-        "image": "https://images.unsplash.com/photo-1487180144351-b8472da7d491?auto=format&fit=crop&w=1200&q=80",
-        "description": "Acara musik elegan dengan atmosfer intim.",
-    },
-    {
-        "event_id": "60000000-0000-0000-0000-000000000005",
-        "event_title": "Campus Festival Purwokerto",
-        "event_datetime": datetime(2026, 7, 20, 16, 0),
-        "venue_id": "11111111-1111-1111-1111-111111111111",
-        "venue_name": "Jakarta Convention Center",
-        "organizer_id": "40000000-0000-0000-0000-000000000004",
-        "organizer_name": "Bright Stage ID",
-        "performers": ["RAN", "Nadin Amizah"],
-        "ticket_categories": [
-            {"name": "Festival", "price": 200000},
-            {"name": "VIP", "price": 600000},
-        ],
-        "image": "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=80",
-        "description": "Festival kampus dengan energi penuh dan harga ramah mahasiswa.",
-    },
-    {
-        "event_id": "60000000-0000-0000-0000-000000000006",
-        "event_title": "Road To Year End Concert",
-        "event_datetime": datetime(2026, 12, 20, 19, 30),
-        "venue_id": "11111111-1111-1111-1111-111111111112",
-        "venue_name": "Istora Senayan",
-        "organizer_id": "40000000-0000-0000-0000-000000000002",
-        "organizer_name": "Sunset Wave Organizer",
-        "performers": ["Tulus", "Pamungkas", "NOAH"],
-        "ticket_categories": [
-            {"name": "Platinum", "price": 1750000},
-            {"name": "Regular", "price": 400000},
-        ],
-        "image": "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1200&q=80",
-        "description": "Penutup tahun dengan konser besar dan panggung megah.",
-    },
-]
+from core.db import execute_query, fetch_all, fetch_one
 
 
 def _can_manage(request):
-    user_data = request.session.get("user", {})
-    role = user_data.get("role", "")
-    return role in ["administrator", "organizer"]
+    user = request.session.get("user", {})
+    return user.get("role", "") in ["administrator", "organizer"]
 
 
-def _find_event(event_id):
-    for event in DUMMY_EVENTS:
-        if str(event["event_id"]) == str(event_id):
-            return event
-    return None
+def _get_organizer_id(request):
+    user = request.session.get("user", {})
+    return user.get("organizer_id")
 
+
+# ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+def _fetch_events(q="", venue_name_filter=""):
+    where = ["1=1"]
+    params = []
+    if q:
+        where.append("(LOWER(e.event_title) LIKE %s)")
+        params.append(f"%{q.lower()}%")
+    if venue_name_filter:
+        where.append("v.venue_name = %s")
+        params.append(venue_name_filter)
+
+    events = fetch_all(
+        f"""
+        SELECT e.event_id::text, e.event_title, e.event_datetime,
+               v.venue_id::text, v.venue_name,
+               o.organizer_id::text, o.organizer_name,
+               COALESCE(
+                   array_agg(DISTINCT a.name ORDER BY a.name)
+                   FILTER (WHERE a.name IS NOT NULL),
+                   ARRAY[]::varchar[]
+               ) AS performers
+        FROM EVENT e
+        JOIN VENUE v    ON e.venue_id    = v.venue_id
+        JOIN ORGANIZER o ON e.organizer_id = o.organizer_id
+        LEFT JOIN EVENT_ARTIST ea ON e.event_id  = ea.event_id
+        LEFT JOIN ARTIST a        ON ea.artist_id = a.artist_id
+        WHERE {' AND '.join(where)}
+        GROUP BY e.event_id, e.event_title, e.event_datetime,
+                 v.venue_id, v.venue_name, o.organizer_id, o.organizer_name
+        ORDER BY e.event_datetime
+        """,
+        params,
+    )
+
+    if not events:
+        return events
+
+    # Batch-fetch ticket categories for all events
+    event_ids = [e["event_id"] for e in events]
+    placeholders = ",".join(["%s"] * len(event_ids))
+    cats = fetch_all(
+        f"SELECT tevent_id::text AS event_id, category_name AS name, price "
+        f"FROM TICKET_CATEGORY WHERE tevent_id IN ({placeholders}) ORDER BY price",
+        event_ids,
+    )
+    cats_by_event = {}
+    for cat in cats:
+        cats_by_event.setdefault(cat["event_id"], []).append(
+            {"name": cat["name"], "price": cat["price"]}
+        )
+
+    for event in events:
+        event["ticket_categories"] = cats_by_event.get(event["event_id"], [])
+        event["image"] = ""
+        event["description"] = ""
+
+    return events
+
+
+def _fetch_event(event_id):
+    event = fetch_one(
+        """
+        SELECT e.event_id::text, e.event_title, e.event_datetime,
+               v.venue_id::text, v.venue_name,
+               o.organizer_id::text, o.organizer_name
+        FROM EVENT e
+        JOIN VENUE v    ON e.venue_id    = v.venue_id
+        JOIN ORGANIZER o ON e.organizer_id = o.organizer_id
+        WHERE e.event_id = %s
+        """,
+        [event_id],
+    )
+    if not event:
+        return None
+
+    artists = fetch_all(
+        """
+        SELECT a.name FROM ARTIST a
+        JOIN EVENT_ARTIST ea ON a.artist_id = ea.artist_id
+        WHERE ea.event_id = %s ORDER BY a.name
+        """,
+        [event_id],
+    )
+    event["performers"] = [a["name"] for a in artists]
+
+    cats = fetch_all(
+        "SELECT category_name AS name, price FROM TICKET_CATEGORY "
+        "WHERE tevent_id = %s ORDER BY price",
+        [event_id],
+    )
+    event["ticket_categories"] = cats
+    event["image"] = ""
+    event["description"] = ""
+    return event
+
+
+def _sync_performers(event_id, performers_text):
+    names = [n.strip() for n in performers_text.split(",") if n.strip()]
+    execute_query("DELETE FROM EVENT_ARTIST WHERE event_id = %s", [event_id])
+    for name in names:
+        artist = fetch_one(
+            "SELECT artist_id::text FROM ARTIST WHERE LOWER(name) = LOWER(%s)", [name]
+        )
+        if artist:
+            artist_id = artist["artist_id"]
+        else:
+            artist_id = str(uuid.uuid4())
+            execute_query(
+                "INSERT INTO ARTIST (artist_id, name) VALUES (%s, %s)",
+                [artist_id, name],
+            )
+        execute_query(
+            "INSERT INTO EVENT_ARTIST (event_id, artist_id, role) VALUES (%s, %s, %s) "
+            "ON CONFLICT DO NOTHING",
+            [event_id, artist_id, "Performer"],
+        )
+
+
+def _add_new_categories(event_id, ticket_categories_text):
+    names = [n.strip() for n in ticket_categories_text.split(",") if n.strip()]
+    existing = {
+        r["category_name"]
+        for r in fetch_all(
+            "SELECT category_name FROM TICKET_CATEGORY WHERE tevent_id = %s", [event_id]
+        )
+    }
+    for name in names:
+        if name not in existing:
+            execute_query(
+                "INSERT INTO TICKET_CATEGORY (category_id, category_name, quota, price, tevent_id) "
+                "VALUES (%s, %s, 0, 0, %s)",
+                [str(uuid.uuid4()), name, event_id],
+            )
+
+
+# ─── EVENT VIEWS ──────────────────────────────────────────────────────────────
 
 def event_list(request):
-    q = request.GET.get("q", "").strip().lower()
-    venue = request.GET.get("venue", "").strip().lower()
+    q = request.GET.get("q", "").strip()
+    venue_filter = request.GET.get("venue", "").strip()
 
-    events = DUMMY_EVENTS[:]
-
-    if q:
-        events = [
-            e for e in events
-            if q in e["event_title"].lower()
-            or any(q in p.lower() for p in e["performers"])
-            or q in e["description"].lower()
-        ]
-
-    if venue:
-        events = [e for e in events if e["venue_name"].lower() == venue]
+    events = _fetch_events(q, venue_filter)
+    venues = [
+        r["venue_name"]
+        for r in fetch_all("SELECT DISTINCT venue_name FROM VENUE ORDER BY venue_name")
+    ]
 
     return render(request, "events/event_list.html", {
-        "events": sorted(events, key=lambda x: x["event_datetime"]),
-        "venues": sorted({v["venue_name"] for v in DUMMY_VENUES}),
-        "q": request.GET.get("q", ""),
-        "selected_venue": request.GET.get("venue", ""),
+        "events": events,
+        "venues": venues,
+        "q": q,
+        "selected_venue": venue_filter,
         "can_manage": _can_manage(request),
     })
 
 
 def event_partial(request):
-    return render(request, "events/partials/event_cards.html", {"events": DUMMY_EVENTS})
+    events = _fetch_events()
+    return render(request, "events/partials/event_cards.html", {"events": events})
 
 
 def event_detail(request, event_id):
-    event = _find_event(event_id)
+    event = _fetch_event(event_id)
     if not event:
-        messages.error(request, "Event tidak ditemukan.")
         return redirect("events:event_list")
 
     return render(request, "events/event_detail.html", {
@@ -188,117 +192,194 @@ def event_detail(request, event_id):
 
 def event_create(request):
     if not _can_manage(request):
-        messages.error(request, "Kamu tidak punya akses untuk membuat event.")
         return redirect("events:event_list")
 
+    error = None
     if request.method == "POST":
-        messages.success(request, "Event berhasil dibuat. Ini masih dummy frontend.")
-        return redirect("events:event_list")
+        title = request.POST.get("event_title", "").strip()
+        event_datetime = request.POST.get("event_datetime", "").strip()
+        venue_id = request.POST.get("venue_id", "").strip()
+        organizer_id = request.POST.get("organizer_id", "").strip()
+        performers_text = request.POST.get("performers", "").strip()
+        ticket_categories_text = request.POST.get("ticket_categories", "").strip()
 
+        try:
+            with transaction.atomic():
+                event_id = str(uuid.uuid4())
+                execute_query(
+                    "INSERT INTO EVENT (event_id, event_title, event_datetime, venue_id, organizer_id) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    [event_id, title, event_datetime, venue_id, organizer_id],
+                )
+                _sync_performers(event_id, performers_text)
+                _add_new_categories(event_id, ticket_categories_text)
+            return redirect("events:event_list")
+        except DatabaseError as e:
+            error = str(e).split("\n")[0]
+
+    venues = fetch_all("SELECT venue_id::text, venue_name FROM VENUE ORDER BY venue_name")
+    organizers = fetch_all(
+        "SELECT organizer_id::text, organizer_name FROM ORGANIZER ORDER BY organizer_name"
+    )
     return render(request, "events/partials/event_modal.html", {
         "mode": "create",
-        "event": None,
-        "venues": DUMMY_VENUES,
-        "organizers": DUMMY_ORGANIZERS,
-        "performers_text": "",
-        "ticket_categories_text": "",
+        "event": {},
+        "venues": venues,
+        "organizers": organizers,
+        "performers_text": request.POST.get("performers", "") if error else "",
+        "ticket_categories_text": request.POST.get("ticket_categories", "") if error else "",
+        "error": error,
     })
 
 
 def event_edit(request, event_id):
     if not _can_manage(request):
-        messages.error(request, "Kamu tidak punya akses untuk mengubah event.")
         return redirect("events:event_list")
 
-    event = _find_event(event_id)
+    event = _fetch_event(event_id)
     if not event:
-        messages.error(request, "Event tidak ditemukan.")
         return redirect("events:event_list")
 
+    error = None
     if request.method == "POST":
-        messages.success(request, "Event berhasil diperbarui. Ini masih dummy frontend.")
-        return redirect("events:event_list")
+        title = request.POST.get("event_title", "").strip()
+        event_datetime = request.POST.get("event_datetime", "").strip()
+        venue_id = request.POST.get("venue_id", "").strip()
+        organizer_id = request.POST.get("organizer_id", "").strip()
+        performers_text = request.POST.get("performers", "").strip()
+        ticket_categories_text = request.POST.get("ticket_categories", "").strip()
+
+        try:
+            with transaction.atomic():
+                execute_query(
+                    "UPDATE EVENT SET event_title=%s, event_datetime=%s, venue_id=%s, organizer_id=%s "
+                    "WHERE event_id=%s",
+                    [title, event_datetime, venue_id, organizer_id, event_id],
+                )
+                _sync_performers(event_id, performers_text)
+                _add_new_categories(event_id, ticket_categories_text)
+            return redirect("events:event_list")
+        except DatabaseError as e:
+            error = str(e).split("\n")[0]
+
+    venues = fetch_all("SELECT venue_id::text, venue_name FROM VENUE ORDER BY venue_name")
+    organizers = fetch_all(
+        "SELECT organizer_id::text, organizer_name FROM ORGANIZER ORDER BY organizer_name"
+    )
+    performers_text = ", ".join(event["performers"])
+    ticket_categories_text = ", ".join(c["name"] for c in event["ticket_categories"])
 
     return render(request, "events/partials/event_modal.html", {
         "mode": "edit",
         "event": event,
-        "venues": DUMMY_VENUES,
-        "organizers": DUMMY_ORGANIZERS,
-        "performers_text": ", ".join(event["performers"]),
-        "ticket_categories_text": ", ".join([c["name"] for c in event["ticket_categories"]]),
+        "venues": venues,
+        "organizers": organizers,
+        "performers_text": performers_text,
+        "ticket_categories_text": ticket_categories_text,
+        "error": error,
     })
 
 
+# ─── ARTIST VIEWS ─────────────────────────────────────────────────────────────
+
 def artist_list(request):
-    search = request.GET.get('search', '')
-    sql = "SELECT * FROM artist"
+    search = request.GET.get("search", "")
+    sql = "SELECT artist_id::text, name, genre FROM ARTIST"
     params = []
     if search:
         sql += " WHERE name ILIKE %s OR genre ILIKE %s"
-        params = [f'%{search}%', f'%{search}%']
+        params = [f"%{search}%", f"%{search}%"]
     sql += " ORDER BY name"
     artists = fetch_all(sql, params)
-    total_artists = fetch_one("SELECT COUNT(*) as count FROM artist")
-    total_genres = fetch_one("SELECT COUNT(DISTINCT genre) as count FROM artist WHERE genre IS NOT NULL")
-    total_in_events = fetch_one("SELECT COUNT(DISTINCT artist_id) as count FROM event_artist")
-    return render(request, 'events/artist_list.html', {
-        'artists': artists,
-        'search': search,
-        'total_artists': total_artists['count'] if total_artists else 0,
-        'total_genres': total_genres['count'] if total_genres else 0,
-        'total_in_events': total_in_events['count'] if total_in_events else 0,
+
+    total_artists = fetch_one("SELECT COUNT(*) AS count FROM ARTIST")
+    total_genres = fetch_one(
+        "SELECT COUNT(DISTINCT genre) AS count FROM ARTIST WHERE genre IS NOT NULL"
+    )
+    total_in_events = fetch_one(
+        "SELECT COUNT(DISTINCT artist_id) AS count FROM EVENT_ARTIST"
+    )
+
+    return render(request, "events/artist_list.html", {
+        "artists": artists,
+        "search": search,
+        "total_artists": total_artists["count"] if total_artists else 0,
+        "total_genres": total_genres["count"] if total_genres else 0,
+        "total_in_events": total_in_events["count"] if total_in_events else 0,
     })
 
 
 def artist_partial(request):
-    artists = fetch_all("SELECT * FROM artist ORDER BY name")
-    return render(request, 'events/partials/artist_table.html', {'artists': artists})
+    artists = fetch_all("SELECT artist_id::text, name, genre FROM ARTIST ORDER BY name")
+    return render(request, "events/partials/artist_table.html", {"artists": artists})
 
 
-@role_required('administrator')
+@role_required("administrator")
 def artist_create(request):
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        genre = request.POST.get('genre', '').strip()
+    error = None
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        genre = request.POST.get("genre", "").strip()
         if not name:
-            messages.error(request, 'Nama artist wajib diisi.')
+            error = "Nama artist wajib diisi."
         else:
-            execute_query(
-                "INSERT INTO artist (artist_id, name, genre) VALUES (gen_random_uuid(), %s, %s)",
-                [name, genre or None]
-            )
-            messages.success(request, 'Artist berhasil ditambahkan.')
-            return redirect('artist_list')
-    return render(request, 'events/artist_form.html', {'action': 'create'})
+            try:
+                execute_query(
+                    "INSERT INTO ARTIST (artist_id, name, genre) VALUES (%s, %s, %s)",
+                    [str(uuid.uuid4()), name, genre or None],
+                )
+                return redirect("events:artist_list")
+            except DatabaseError as e:
+                error = str(e).split("\n")[0]
+    return render(request, "events/artist_form.html", {"action": "create", "error": error})
 
 
-@role_required('administrator')
+@role_required("administrator")
 def artist_edit(request, artist_id):
-    artist = fetch_one("SELECT * FROM artist WHERE artist_id = %s", [artist_id])
+    artist = fetch_one(
+        "SELECT artist_id::text, name, genre FROM ARTIST WHERE artist_id = %s", [artist_id]
+    )
     if not artist:
-        return redirect('artist_list')
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        genre = request.POST.get('genre', '').strip()
+        return redirect("events:artist_list")
+
+    error = None
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+        genre = request.POST.get("genre", "").strip()
         if not name:
-            messages.error(request, 'Nama artist wajib diisi.')
+            error = "Nama artist wajib diisi."
         else:
-            execute_query(
-                "UPDATE artist SET name=%s, genre=%s WHERE artist_id=%s",
-                [name, genre or None, artist_id]
-            )
-            messages.success(request, 'Artist berhasil diperbarui.')
-            return redirect('artist_list')
-    return render(request, 'events/artist_form.html', {'action': 'edit', 'artist': artist})
+            try:
+                execute_query(
+                    "UPDATE ARTIST SET name=%s, genre=%s WHERE artist_id=%s",
+                    [name, genre or None, artist_id],
+                )
+                return redirect("events:artist_list")
+            except DatabaseError as e:
+                error = str(e).split("\n")[0]
+    return render(request, "events/artist_form.html", {
+        "action": "edit",
+        "artist": artist,
+        "error": error,
+    })
 
 
-@role_required('administrator')
+@role_required("administrator")
 def artist_delete(request, artist_id):
-    artist = fetch_one("SELECT * FROM artist WHERE artist_id = %s", [artist_id])
+    artist = fetch_one(
+        "SELECT artist_id::text, name FROM ARTIST WHERE artist_id = %s", [artist_id]
+    )
     if not artist:
-        return redirect('artist_list')
-    if request.method == 'POST':
-        execute_query("DELETE FROM artist WHERE artist_id = %s", [artist_id])
-        messages.success(request, 'Artist berhasil dihapus.')
-        return redirect('artist_list')
-    return render(request, 'events/artist_confirm_delete.html', {'artist': artist})
+        return redirect("events:artist_list")
+
+    error = None
+    if request.method == "POST":
+        try:
+            execute_query("DELETE FROM ARTIST WHERE artist_id = %s", [artist_id])
+            return redirect("events:artist_list")
+        except DatabaseError as e:
+            error = str(e).split("\n")[0]
+    return render(request, "events/artist_confirm_delete.html", {
+        "artist": artist,
+        "error": error,
+    })

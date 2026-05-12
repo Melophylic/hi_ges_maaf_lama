@@ -1,205 +1,177 @@
-from django.shortcuts import render, redirect
+import uuid
+
+from django.db import DatabaseError, transaction
 from django.http import JsonResponse
-from django.contrib import messages
+from django.shortcuts import render, redirect
 
-PROMOTIONS = [
-    {
-        'promotion_id': 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee1',
-        'promo_code': 'PROMO_TAHUN_BARU',
-        'discount_type': 'PERCENTAGE',
-        'discount_value': 25.00,
-        'start_date': '2026-01-01',
-        'end_date': '2026-01-05',
-        'usage_limit': 100,
-        'used': 44,
-    },
-    {
-        'promotion_id': 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee2',
-        'promo_code': 'PROMO_VALENTINE',
-        'discount_type': 'NOMINAL',
-        'discount_value': 14000.00,
-        'start_date': '2026-02-14',
-        'end_date': '2026-02-15',
-        'usage_limit': 50,
-        'used': 12,
-    },
-    {
-        'promotion_id': 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3',
-        'promo_code': 'LEBARAN_IDUL_FITRI',
-        'discount_type': 'PERCENTAGE',
-        'discount_value': 50.00,
-        'start_date': '2026-03-20',
-        'end_date': '2026-04-05',
-        'usage_limit': 200,
-        'used': 87,
-    },
-    {
-        'promotion_id': 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee4',
-        'promo_code': 'DISKON_PELAJAR',
-        'discount_type': 'PERCENTAGE',
-        'discount_value': 15.00,
-        'start_date': '2026-01-01',
-        'end_date': '2026-12-31',
-        'usage_limit': 500,
-        'used': 156,
-    },
-    {
-        'promotion_id': 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee5',
-        'promo_code': 'MEMBER_BARU',
-        'discount_type': 'NOMINAL',
-        'discount_value': 20000.00,
-        'start_date': '2026-01-01',
-        'end_date': '2026-12-31',
-        'usage_limit': 1000,
-        'used': 231,
-    },
-    {
-        'promotion_id': 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee6',
-        'promo_code': 'FLASH_SALE_MANTAP',
-        'discount_type': 'NOMINAL',
-        'discount_value': 100000.00,
-        'start_date': '2026-04-28',
-        'end_date': '2026-04-28',
-        'usage_limit': 25,
-        'used': 19,
-    },
-]
+from core.db import execute_query, fetch_all, fetch_one
 
-DISCOUNT_TYPES = ['PERCENTAGE', 'NOMINAL']
-MOCK_ROLE = 'admin'
+DISCOUNT_TYPES = ["PERCENTAGE", "NOMINAL"]
 
 
-def get_mock_role(request):
+def _get_role(request):
     user = request.session.get("user")
-
     if user:
-        role = user.get("role")
-
+        role = user.get("role", "")
         if role == "administrator":
             return "admin"
-
-        if role == "organizer":
-            return "organizer"
-
-        if role == "customer":
-            return "customer"
-
-    return request.GET.get("role", MOCK_ROLE)
+        if role in ("organizer", "customer"):
+            return role
+    return request.GET.get("role", "admin")
 
 
-def is_ajax(request):
-    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+def _is_ajax(request):
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
-def redirect_with_role(role):
-    return redirect(f'/promotions/?role={role}')
+def _redirect_list(role):
+    return redirect(f"/promotions/?role={role}")
 
 
 def promotion_list(request):
-    role = get_mock_role(request)
-    promotions = list(PROMOTIONS)
+    role = _get_role(request)
+    search = request.GET.get("q", "").strip().lower()
+    filter_type = request.GET.get("type", "all")
 
-    search = request.GET.get('q', '').strip().lower()
-    filter_type = request.GET.get('type', 'all')
-
+    where = ["1=1"]
+    params = []
     if search:
-        promotions = [p for p in promotions if search in p['promo_code'].lower()]
-
+        where.append("LOWER(p.promo_code) LIKE %s")
+        params.append(f"%{search}%")
     if filter_type in DISCOUNT_TYPES:
-        promotions = [p for p in promotions if p['discount_type'] == filter_type]
+        where.append("p.discount_type = %s")
+        params.append(filter_type)
 
-    total_promos = len(PROMOTIONS)
-    total_usage = sum(p['used'] for p in PROMOTIONS)
-    total_percentage = sum(1 for p in PROMOTIONS if p['discount_type'] == 'PERCENTAGE')
+    promotions = fetch_all(
+        f"""
+        SELECT p.promotion_id::text, p.promo_code, p.discount_type, p.discount_value,
+               p.start_date, p.end_date, p.usage_limit,
+               COUNT(op.order_promotion_id) AS used
+        FROM PROMOTION p
+        LEFT JOIN ORDER_PROMOTION op ON p.promotion_id = op.promotion_id
+        WHERE {' AND '.join(where)}
+        GROUP BY p.promotion_id, p.promo_code, p.discount_type, p.discount_value,
+                 p.start_date, p.end_date, p.usage_limit
+        ORDER BY p.promo_code
+        """,
+        params,
+    )
 
-    return render(request, 'promotions/promotion_list.html', {
-        'role': role,
-        'promotions': promotions,
-        'search': search,
-        'filter_type': filter_type,
-        'discount_types': DISCOUNT_TYPES,
-        'total_promos': total_promos,
-        'total_usage': total_usage,
-        'total_percentage': total_percentage,
+    totals = fetch_all(
+        """
+        SELECT COUNT(*) AS total_promos,
+               SUM((SELECT COUNT(*) FROM ORDER_PROMOTION op WHERE op.promotion_id = p.promotion_id)) AS total_usage,
+               COUNT(*) FILTER (WHERE p.discount_type = 'PERCENTAGE') AS total_percentage
+        FROM PROMOTION p
+        """
+    )
+    row = totals[0] if totals else {}
+
+    return render(request, "promotions/promotion_list.html", {
+        "role": role,
+        "promotions": promotions,
+        "search": search,
+        "filter_type": filter_type,
+        "discount_types": DISCOUNT_TYPES,
+        "total_promos": row.get("total_promos", 0) or 0,
+        "total_usage": row.get("total_usage", 0) or 0,
+        "total_percentage": row.get("total_percentage", 0) or 0,
     })
 
 
 def promotion_create(request):
-    role = get_mock_role(request)
+    role = _get_role(request)
 
-    if role != 'admin':
-        return JsonResponse({'success': False, 'message': 'Hanya admin yang dapat membuat promo.'}, status=403)
+    if role != "admin":
+        return JsonResponse({"success": False, "message": "Hanya admin yang dapat membuat promo."}, status=403)
 
-    if request.method == 'POST':
-        new_promo = {
-            'promotion_id': f'promo-{len(PROMOTIONS) + 1}',
-            'promo_code': request.POST.get('promo_code'),
-            'discount_type': request.POST.get('discount_type'),
-            'discount_value': float(request.POST.get('discount_value')),
-            'start_date': request.POST.get('start_date'),
-            'end_date': request.POST.get('end_date'),
-            'usage_limit': int(request.POST.get('usage_limit')),
-            'used': 0,
-        }
+    if request.method == "POST":
+        promo_code = request.POST.get("promo_code", "").strip().upper()
+        discount_type = request.POST.get("discount_type", "").strip()
+        discount_value = request.POST.get("discount_value", "0")
+        start_date = request.POST.get("start_date", "")
+        end_date = request.POST.get("end_date", "")
+        usage_limit = request.POST.get("usage_limit", "1")
 
-        PROMOTIONS.insert(0, new_promo)
+        try:
+            with transaction.atomic():
+                execute_query(
+                    "INSERT INTO PROMOTION "
+                    "(promotion_id, promo_code, discount_type, discount_value, start_date, end_date, usage_limit) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    [
+                        str(uuid.uuid4()), promo_code, discount_type,
+                        float(discount_value), start_date, end_date, int(usage_limit),
+                    ],
+                )
+        except (DatabaseError, ValueError) as e:
+            msg = str(e).split("\n")[0]
+            return JsonResponse({"success": False, "message": msg}, status=400)
 
-        if is_ajax(request):
-            return JsonResponse({'success': True, 'message': 'Promo baru berhasil dibuat!'})
+        if _is_ajax(request):
+            return JsonResponse({"success": True, "message": "Promo baru berhasil dibuat!"})
+        return _redirect_list(role)
 
-        messages.success(request, 'Promo baru berhasil dibuat!')
-        return redirect_with_role(role)
-
-    return redirect_with_role(role)
+    return _redirect_list(role)
 
 
 def promotion_update(request, promotion_id):
-    role = get_mock_role(request)
+    role = _get_role(request)
 
-    if role != 'admin':
-        return JsonResponse({'success': False, 'message': 'Hanya admin yang dapat update promo.'}, status=403)
+    if role != "admin":
+        return JsonResponse({"success": False, "message": "Hanya admin yang dapat update promo."}, status=403)
 
-    promotion = next((p for p in PROMOTIONS if p['promotion_id'] == promotion_id), None)
+    promo = fetch_one("SELECT promotion_id FROM PROMOTION WHERE promotion_id = %s", [promotion_id])
+    if not promo:
+        return JsonResponse({"success": False, "message": "Promo tidak ditemukan."}, status=404)
 
-    if not promotion:
-        return JsonResponse({'success': False, 'message': 'Promo tidak ditemukan.'}, status=404)
+    if request.method == "POST":
+        promo_code = request.POST.get("promo_code", "").strip().upper()
+        discount_type = request.POST.get("discount_type", "").strip()
+        discount_value = request.POST.get("discount_value", "0")
+        start_date = request.POST.get("start_date", "")
+        end_date = request.POST.get("end_date", "")
+        usage_limit = request.POST.get("usage_limit", "1")
 
-    if request.method == 'POST':
-        promotion['promo_code'] = request.POST.get('promo_code')
-        promotion['discount_type'] = request.POST.get('discount_type')
-        promotion['discount_value'] = float(request.POST.get('discount_value'))
-        promotion['start_date'] = request.POST.get('start_date')
-        promotion['end_date'] = request.POST.get('end_date')
-        promotion['usage_limit'] = int(request.POST.get('usage_limit'))
+        try:
+            execute_query(
+                "UPDATE PROMOTION SET promo_code=%s, discount_type=%s, discount_value=%s, "
+                "start_date=%s, end_date=%s, usage_limit=%s WHERE promotion_id=%s",
+                [
+                    promo_code, discount_type, float(discount_value),
+                    start_date, end_date, int(usage_limit), promotion_id,
+                ],
+            )
+        except (DatabaseError, ValueError) as e:
+            msg = str(e).split("\n")[0]
+            return JsonResponse({"success": False, "message": msg}, status=400)
 
-        if is_ajax(request):
-            return JsonResponse({'success': True, 'message': 'Promo berhasil diperbarui!'})
+        if _is_ajax(request):
+            return JsonResponse({"success": True, "message": "Promo berhasil diperbarui!"})
+        return _redirect_list(role)
 
-        messages.success(request, 'Promo berhasil diperbarui!')
-        return redirect_with_role(role)
-
-    return redirect_with_role(role)
+    return _redirect_list(role)
 
 
 def promotion_delete(request, promotion_id):
-    role = get_mock_role(request)
+    role = _get_role(request)
 
-    if role != 'admin':
-        return JsonResponse({'success': False, 'message': 'Hanya admin yang dapat delete promo.'}, status=403)
+    if role != "admin":
+        return JsonResponse({"success": False, "message": "Hanya admin yang dapat delete promo."}, status=403)
 
-    if request.method == 'POST':
-        global PROMOTIONS
+    if request.method == "POST":
+        promo = fetch_one("SELECT promotion_id FROM PROMOTION WHERE promotion_id = %s", [promotion_id])
+        if not promo:
+            return JsonResponse({"success": False, "message": "Promo tidak ditemukan."}, status=404)
 
-        before_count = len(PROMOTIONS)
-        PROMOTIONS = [p for p in PROMOTIONS if p['promotion_id'] != promotion_id]
+        try:
+            with transaction.atomic():
+                execute_query("DELETE FROM PROMOTION WHERE promotion_id = %s", [promotion_id])
+        except DatabaseError as e:
+            return JsonResponse({"success": False, "message": str(e).split("\n")[0]}, status=500)
 
-        if len(PROMOTIONS) == before_count:
-            return JsonResponse({'success': False, 'message': 'Promo tidak ditemukan.'}, status=404)
+        if _is_ajax(request):
+            return JsonResponse({"success": True, "message": "Promo berhasil dihapus!"})
+        return _redirect_list(role)
 
-        if is_ajax(request):
-            return JsonResponse({'success': True, 'message': 'Promo berhasil dihapus!'})
-
-        messages.success(request, 'Promo berhasil dihapus!')
-        return redirect_with_role(role)
-
-    return redirect_with_role(role)
+    return _redirect_list(role)
