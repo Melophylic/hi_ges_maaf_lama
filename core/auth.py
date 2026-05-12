@@ -37,7 +37,18 @@ def authenticate_user(username, password):
 
 
 def login_user(request, user):
-    request.session['user'] = user
+    safe_user = user.copy()
+
+    if 'user_id' in safe_user:
+        safe_user['user_id'] = str(safe_user['user_id'])
+
+    if 'customer_id' in safe_user:
+        safe_user['customer_id'] = str(safe_user['customer_id'])
+
+    if 'organizer_id' in safe_user:
+        safe_user['organizer_id'] = str(safe_user['organizer_id'])
+
+    request.session['user'] = safe_user
 
 
 def logout_user(request):
